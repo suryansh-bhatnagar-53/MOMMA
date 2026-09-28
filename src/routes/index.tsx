@@ -1,24 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
+import { SiteHeader } from "@/components/momma/SiteHeader";
+import { Hero } from "@/components/momma/Hero";
+import { ContextDemo } from "@/components/momma/ContextDemo";
+import { KnowledgeMap } from "@/components/momma/KnowledgeMap";
+import { Testimonials } from "@/components/momma/Testimonials";
+import { UnderTheHood } from "@/components/momma/UnderTheHood";
+import { Faq } from "@/components/momma/Faq";
+import { CtaFooter } from "@/components/momma/CtaFooter";
+
+const title = "M.O.M.M.A. — Stop Rebuilding AI Assistants";
+const description =
+  "MOMMA understands your project through context and intelligent interviews, then generates and evolves a customized AI bot — so you never start from scratch again.";
+
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title },
+      { name: "description", content: description },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen bg-paper font-body text-ink">
+      <SiteHeader />
+      <main>
+        <Hero />
+        <ContextDemo />
+        <KnowledgeMap />
+        <Testimonials />
+        <UnderTheHood />
+        <Faq />
+      </main>
+      <CtaFooter />
     </div>
   );
 }
