@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { SiteHeader } from "@/components/momma/SiteHeader";
 import { Hero } from "@/components/momma/Hero";
+import { ScenarioFlows } from "@/components/momma/ScenarioFlows";
 import { ContextDemo } from "@/components/momma/ContextDemo";
 import { KnowledgeMap } from "@/components/momma/KnowledgeMap";
 import { UnderTheHood } from "@/components/momma/UnderTheHood";
@@ -32,6 +33,7 @@ function Index() {
       <SiteHeader />
       <main>
         <Hero />
+        <ScenarioFlows />
         <ContextDemo />
         <KnowledgeMap />
         <UnderTheHood />
