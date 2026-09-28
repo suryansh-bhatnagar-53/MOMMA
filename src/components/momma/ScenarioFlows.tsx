@@ -1,5 +1,5 @@
 type Step = { icon: string; label: string; text: string; tip: string };
-type Scenario = { name: string; steps: Step[]; decision: string };
+type Scenario = { name: string; steps: [Step, Step, Step, Step, Step]; decision: string };
 
 const s = (icon: string, label: string, text: string, tip: string): Step => ({ icon, label, text, tip });
 
