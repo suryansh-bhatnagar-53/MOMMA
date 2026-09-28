@@ -4,7 +4,6 @@ import { SiteHeader } from "@/components/momma/SiteHeader";
 import { Hero } from "@/components/momma/Hero";
 import { ContextDemo } from "@/components/momma/ContextDemo";
 import { KnowledgeMap } from "@/components/momma/KnowledgeMap";
-import { Testimonials } from "@/components/momma/Testimonials";
 import { UnderTheHood } from "@/components/momma/UnderTheHood";
 import { Faq } from "@/components/momma/Faq";
 import { CtaFooter } from "@/components/momma/CtaFooter";
@@ -35,7 +34,6 @@ function Index() {
         <Hero />
         <ContextDemo />
         <KnowledgeMap />
-        <Testimonials />
         <UnderTheHood />
         <Faq />
       </main>
