@@ -109,9 +109,17 @@ function Flow({ sc }: { sc: Scenario }) {
       <Node step={ana} />
       <Arrow label="finds gaps" />
       <div className="flex items-center gap-3 pl-1">
-        <div className="flex h-16 w-16 shrink-0 rotate-45 items-center justify-center rounded-md border border-mustard bg-paper">
-          <span className="-rotate-45 text-lg" aria-hidden>?</span>
-        </div>
+          <svg width="64" height="64" viewBox="0 0 64 64" className="shrink-0" aria-hidden>
+            <path
+              d="M32 3 L61 32 L32 61 L3 32 Z"
+              className="fill-paper stroke-mustard"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            <text x="32" y="39" textAnchor="middle" className="fill-ink font-display" fontSize="22" fontWeight="600">
+              ?
+            </text>
+          </svg>
         <div className="text-xs text-ink/70">
           <p className="font-medium text-ink">{sc.decision}</p>
           <p>
