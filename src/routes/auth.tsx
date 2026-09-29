@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { z } from "zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import bg from "@/assets/auth-bg.jpg";
+import { supabase } from "@/integrations/supabase/client";
 
 const title = "Log in or sign up — M.O.M.M.A.";
 const description = "Log in to MOMMA or create an account to start building your customized AI bot.";
@@ -25,16 +26,19 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-/* ---------- mock API (see src/routes/api/auth/$.ts) ---------- */
-async function api(path: string, body: unknown) {
-  const res = await fetch(`/api/auth/${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message ?? "Something went wrong.");
-  return data;
+const friendly = (msg: string) => {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login")) return "Wrong email or password.";
+  if (m.includes("email not confirmed")) return "Please confirm your email first — check your inbox for the code.";
+  if (m.includes("already registered")) return "That email already has an account. Try logging in.";
+  if (m.includes("expired") || m.includes("invalid") && m.includes("token")) return "That code is invalid or expired.";
+  if (m.includes("rate limit") || m.includes("security purposes")) return "Too many attempts. Please wait a minute and try again.";
+  return msg;
+};
+async function check<T extends { error: { message: string } | null }>(p: Promise<T>): Promise<T> {
+  const r = await p;
+  if (r.error) throw new Error(friendly(r.error.message));
+  return r;
 }
 
 const emailSchema = z.string().trim().email("Enter a valid email address.").max(255);
