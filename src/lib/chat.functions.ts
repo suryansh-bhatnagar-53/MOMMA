@@ -21,20 +21,50 @@ export const askMomma = createServerFn({ method: "POST" })
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { reply: null as string | null };
     try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
         method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        headers: {
+          "Lovable-API-Key": key,
+          "X-Lovable-AIG-SDK": "fetch",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [{ role: "system", content: SYSTEM }, ...data.messages],
+          model: "openai/gpt-6-astra",
+          instructions: SYSTEM,
+          input: data.messages.map((m) => ({ role: m.role, content: m.content })),
+          stream: true,
+          store: false,
+          reasoning: { effort: "low", summary: "auto" },
+          include: ["reasoning.encrypted_content"],
         }),
       });
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         console.error("askMomma gateway", res.status, await res.text());
         return { reply: null };
       }
-      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      return { reply: json.choices?.[0]?.message?.content?.trim() || null };
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let text = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          try {
+            const ev = JSON.parse(payload) as { type?: string; delta?: string };
+            if (ev.type === "response.output_text.delta" && ev.delta) text += ev.delta;
+          } catch {
+            /* ignore partial */
+          }
+        }
+      }
+      return { reply: text.trim() || null };
     } catch (e) {
       console.error("askMomma", e);
       return { reply: null };

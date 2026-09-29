@@ -11,9 +11,6 @@ const CHIPS = FAQ_BANK.slice(0, 4).map((b) => b.q);
 const GREETING =
   "Hi! I'm MOMMA. Tell me about your project, and I'll show you how I'd help you build a bot.";
 
-function withTimeout<T>(p: Promise<T>, ms: number) {
-  return Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
-}
 
 function Avatar({ thinking }: { thinking?: boolean }) {
   return (
@@ -86,7 +83,7 @@ export function ChatPreview() {
     const started = Date.now();
     let reply: string | null = null;
     try {
-      const res = await withTimeout(ask({ data: { messages: history } }), 8000);
+      const res = await ask({ data: { messages: history } });
       reply = res?.reply ?? null;
     } catch {
       reply = null;
