@@ -79,7 +79,7 @@ export function Hero() {
             <div className="mt-8 flex items-center gap-4">
               <Link
                 to="/auth"
-                search={{ tab: "signup" }}
+                search={{ tab: "signup", next: undefined }}
                 className="rounded-xl bg-brick px-6 py-3.5 text-sm font-semibold text-cream ring-1 ring-brick/40 transition-colors hover:bg-brick/90"
               >
                 Get Started →

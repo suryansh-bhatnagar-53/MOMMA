@@ -15,7 +15,7 @@ export function CtaFooter() {
         </p>
         <Link
           to="/auth"
-          search={{ tab: "signup" }}
+          search={{ tab: "signup", next: undefined }}
           className="mt-8 inline-block rounded-xl bg-cream px-8 py-4 text-base font-semibold text-brick ring-1 ring-cream/40 transition-colors hover:bg-cream/90"
         >
           Get Started →
