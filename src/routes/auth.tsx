@@ -60,7 +60,6 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [remember, setRemember] = useState(true);
   const [displayName, setDisplayName] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [errors, setErrors] = useState<Partial<Record<"email"|"password"|"confirm"|"captcha"|"otp", string>>>({});
@@ -321,16 +320,17 @@ function AuthPage() {
                   onRefresh={newCaptcha}
                 />
               )}
+              {tab === "signup" && (
+                <Field id="dname" label="Display name (optional)">
+                  <input id="dname" type="text" autoComplete="nickname" maxLength={60} value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} placeholder=" " />
+                </Field>
+              )}
               <PasswordField id="password" label="Password" value={password} onChange={setPassword} error={errors.password} autoComplete={tab === "login" ? "current-password" : "new-password"} />
               {tab === "signup" && (
                 <PasswordField id="confirm" label="Confirm password" value={confirm} onChange={setConfirm} error={errors.confirm} autoComplete="new-password" />
               )}
               {tab === "login" && (
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-brick" />
-                    Remember me
-                  </label>
+                <div className="flex items-center justify-end text-sm">
                   <button type="button" onClick={() => { setView("forgot-email"); setErrors({}); setBanner(null); }} className="font-medium text-brick hover:underline">
                     Forgot password?
                   </button>
@@ -349,8 +349,7 @@ function AuthPage() {
           {(view === "otp" || view === "forgot-otp") && (
             <form onSubmit={onVerifyOtp} className="mt-2 space-y-4">
               <p className="text-sm text-ink/70">
-                Enter the 6-digit code we sent to <strong className="text-ink">{email}</strong>.
-                <span className="block text-xs text-ink/50">Preview mode: use 123456.</span>
+                We sent an email to <strong className="text-ink">{email}</strong>. Enter the 6-digit code from it, or just click the link in the email.
               </p>
               <OtpInput value={otp} onChange={setOtp} error={errors.otp} />
               <SubmitButton loading={loading}>Verify</SubmitButton>
