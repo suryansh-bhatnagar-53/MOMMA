@@ -164,10 +164,8 @@ function AuthPage() {
           }),
         );
         if (data.session) return done();
-        setOtp(Array(6).fill(""));
-        setView("otp");
-        setCooldown(30);
-        setBanner({ kind: "success", text: "Account created! Check your inbox to confirm your email." });
+        await check(supabase.auth.signInWithPassword({ email: email.trim(), password }));
+        done();
       }
     });
   };
