@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/momma/SiteHeader";
 import { Hero } from "@/components/momma/Hero";
 import { ScenarioFlows } from "@/components/momma/ScenarioFlows";
-import { ContextDemo } from "@/components/momma/ContextDemo";
+import { ChatPreview } from "@/components/momma/ChatPreview";
 import { KnowledgeMap } from "@/components/momma/KnowledgeMap";
 import { UnderTheHood } from "@/components/momma/UnderTheHood";
 import { Faq } from "@/components/momma/Faq";
@@ -33,8 +33,8 @@ function Index() {
       <SiteHeader />
       <main>
         <Hero />
+        <ChatPreview />
         <ScenarioFlows />
-        <ContextDemo />
         <KnowledgeMap />
         <UnderTheHood />
         <Faq />
