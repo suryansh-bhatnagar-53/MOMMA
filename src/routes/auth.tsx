@@ -60,7 +60,8 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [displayName, setDisplayName] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [errors, setErrors] = useState<Partial<Record<"email"|"password"|"confirm"|"captcha"|"otp", string>>>({});
   const [banner, setBanner] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -108,6 +109,19 @@ function AuthPage() {
     }
   }
 
+  // If already signed in (or a confirmation link was clicked), go straight in.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && view === "form") done();
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" && view === "otp") done();
+    });
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  // Client-side math check. TODO: swap for hCaptcha/reCAPTCHA with server-side token verification.
   async function verifyCaptcha() {
     if (!captcha) {
       newCaptcha();
@@ -117,10 +131,7 @@ function AuthPage() {
       setErrors((e) => ({ ...e, captcha: "That sum isn't right — try again." }));
       throw new Error("Security check failed.");
     }
-    if (!captchaOk) {
-      await api("verify-captcha", { ...captcha, answer: Number(captchaAnswer) });
-      setCaptchaOk(true);
-    }
+    setCaptchaOk(true);
   }
 
   const onSubmitForm = (e: FormEvent) => {
@@ -140,15 +151,24 @@ function AuthPage() {
     run(async () => {
       await verifyCaptcha();
       if (tab === "login") {
-        await api("login", { email, password, remember });
-        // TODO: real auth — remember=true → long-lived refresh token in HTTP-only cookie.
+        await check(supabase.auth.signInWithPassword({ email: email.trim(), password }));
         done();
       } else {
-        await api("register", { email, password });
+        const { data } = await check(
+          supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/dashboard`,
+              data: { display_name: displayName.trim() || undefined },
+            },
+          }),
+        );
+        if (data.session) return done();
         setOtp(Array(6).fill(""));
         setView("otp");
         setCooldown(30);
-        setBanner({ kind: "success", text: "Account created! Check your inbox for a 6-digit code." });
+        setBanner({ kind: "success", text: "Account created! Check your inbox to confirm your email." });
       }
     });
   };
@@ -159,7 +179,9 @@ function AuthPage() {
     if (code.length !== 6) return setErrors({ otp: "Enter all 6 digits." });
     setErrors({});
     run(async () => {
-      await api("verify-otp", { email, otp: code });
+      await check(
+        supabase.auth.verifyOtp({ email: email.trim(), token: code, type: view === "forgot-otp" ? "recovery" : "signup" }),
+      );
       if (view === "forgot-otp") {
         setPassword("");
         setConfirm("");
@@ -175,11 +197,13 @@ function AuthPage() {
     if (!em.success) return setErrors({ email: em.error.issues[0]?.message ?? "Invalid email." });
     setErrors({});
     run(async () => {
-      await api("forgot-password", { email });
+      await check(
+        supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` }),
+      );
       setOtp(Array(6).fill(""));
       setView("forgot-otp");
       setCooldown(30);
-      setBanner({ kind: "success", text: "We sent a code to your email." });
+      setBanner({ kind: "success", text: "If that email has an account, we've sent reset instructions." });
     });
   };
 
@@ -192,20 +216,20 @@ function AuthPage() {
     setErrors(errs);
     if (Object.keys(errs).length) return;
     run(async () => {
-      await api("reset-password", { email, password });
-      setView("form");
-      setTab("login");
-      setPassword("");
-      setConfirm("");
-      setBanner({ kind: "success", text: "Password updated. You can log in now." });
+      await check(supabase.auth.updateUser({ password }));
+      done();
     });
   };
 
   const resend = () =>
     run(async () => {
-      await api("resend-otp", { email });
+      if (view === "forgot-otp") {
+        await check(supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` }));
+      } else {
+        await check(supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/dashboard` } }));
+      }
       setCooldown(30);
-      setBanner({ kind: "success", text: "A new code is on its way." });
+      setBanner({ kind: "success", text: "A new email is on its way." });
     });
 
   const heading =
