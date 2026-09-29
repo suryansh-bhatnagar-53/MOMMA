@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 
 type Step = {
   num: string;
@@ -76,12 +77,13 @@ export function Hero() {
               generates and evolves a customized AI bot — so you never start from scratch again.
             </p>
             <div className="mt-8 flex items-center gap-4">
-              <a
-                href="#start"
+              <Link
+                to="/auth"
+                search={{ tab: "signup", next: undefined }}
                 className="rounded-xl bg-brick px-6 py-3.5 text-sm font-semibold text-cream ring-1 ring-brick/40 transition-colors hover:bg-brick/90"
               >
                 Get Started →
-              </a>
+              </Link>
               <a
                 href="#how"
                 className="text-sm font-medium text-ink/70 transition-colors hover:text-ink"

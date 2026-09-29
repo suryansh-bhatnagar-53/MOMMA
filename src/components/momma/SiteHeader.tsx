@@ -23,12 +23,16 @@ export function SiteHeader() {
             <a href="#faq" className="hidden transition-colors hover:text-ink sm:inline">
               FAQ
             </a>
-            <Link to="/auth" search={{ next: undefined }} className="transition-colors hover:text-ink">
+            <Link to="/auth" search={{ next: undefined, tab: undefined }} className="transition-colors hover:text-ink">
               Log in
             </Link>
-            <a href="#start" className="font-semibold text-ink transition-colors hover:text-brick">
+            <Link
+              to="/auth"
+              search={{ tab: "signup", next: undefined }}
+              className="font-semibold text-ink transition-colors hover:text-brick"
+            >
               Get Started →
-            </a>
+            </Link>
           </nav>
         </div>
       </div>
