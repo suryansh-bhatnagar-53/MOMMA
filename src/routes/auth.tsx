@@ -57,7 +57,7 @@ function AuthPage() {
   const [confirm, setConfirm] = useState("");
   const [remember, setRemember] = useState(false);
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Partial<Record<"email"|"password"|"confirm"|"captcha"|"otp", string>>>({});
   const [banner, setBanner] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -120,14 +120,14 @@ function AuthPage() {
 
   const onSubmitForm = (e: FormEvent) => {
     e.preventDefault();
-    const errs: Record<string, string> = {};
+    const errs: Partial<Record<"email"|"password"|"confirm", string>> = {};
     const em = emailSchema.safeParse(email);
-    if (!em.success) errs.email = em.error.issues[0].message;
+    if (!em.success) errs.email = em.error.issues[0]?.message ?? "Invalid email.";
     if (tab === "login") {
       if (password.length < 8) errs.password = "Password must be at least 8 characters.";
     } else {
       const pw = pwSchema.safeParse(password);
-      if (!pw.success) errs.password = pw.error.issues[0].message;
+      if (!pw.success) errs.password = pw.error.issues[0]?.message ?? "Invalid password.";
       if (confirm !== password) errs.confirm = "Passwords don't match.";
     }
     setErrors(errs);
@@ -167,7 +167,7 @@ function AuthPage() {
   const onForgotEmail = (e: FormEvent) => {
     e.preventDefault();
     const em = emailSchema.safeParse(email);
-    if (!em.success) return setErrors({ email: em.error.issues[0].message });
+    if (!em.success) return setErrors({ email: em.error.issues[0]?.message ?? "Invalid email." });
     setErrors({});
     run(async () => {
       await api("forgot-password", { email });
@@ -180,9 +180,9 @@ function AuthPage() {
 
   const onNewPassword = (e: FormEvent) => {
     e.preventDefault();
-    const errs: Record<string, string> = {};
+    const errs: Partial<Record<"email"|"password"|"confirm", string>> = {};
     const pw = pwSchema.safeParse(password);
-    if (!pw.success) errs.password = pw.error.issues[0].message;
+    if (!pw.success) errs.password = pw.error.issues[0]?.message ?? "Invalid password.";
     if (confirm !== password) errs.confirm = "Passwords don't match.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -388,7 +388,7 @@ function AuthPage() {
 const inputCls =
   "peer w-full rounded-lg border border-line bg-paper px-3 pb-2 pt-5 text-sm text-ink outline-none transition focus:border-brick focus:ring-2 focus:ring-brick/25";
 
-function Field({ id, label, error, children }: { id: string; label: string; error?: string; children: ReactNode }) {
+function Field({ id, label, error, children }: { id: string; label: string; error?: string | undefined; children: ReactNode }) {
   return (
     <div>
       <div className="relative">
@@ -405,7 +405,7 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
   );
 }
 
-function PasswordField(p: { id: string; label: string; value: string; onChange: (v: string) => void; error?: string; autoComplete: string }) {
+function PasswordField(p: { id: string; label: string; value: string; onChange: (v: string) => void; error?: string | undefined; autoComplete: string }) {
   const [show, setShow] = useState(false);
   return (
     <Field id={p.id} label={p.label} error={p.error}>
@@ -417,7 +417,7 @@ function PasswordField(p: { id: string; label: string; value: string; onChange: 
   );
 }
 
-function MathCaptcha(p: { a: number; b: number; value: string; ok: boolean; error?: string; onChange: (v: string) => void; onRefresh: () => void }) {
+function MathCaptcha(p: { a: number; b: number; value: string; ok: boolean; error?: string | undefined; onChange: (v: string) => void; onRefresh: () => void }) {
   return (
     <div role="group" aria-label="Security check: solve the puzzle to continue" className="tag-mat rounded-lg border border-dashed border-line bg-paper/60 p-3">
       <div className="flex items-center gap-3">
@@ -436,7 +436,7 @@ function MathCaptcha(p: { a: number; b: number; value: string; ok: boolean; erro
   );
 }
 
-function OtpInput({ value, onChange, error }: { value: string[]; onChange: (v: string[]) => void; error?: string }) {
+function OtpInput({ value, onChange, error }: { value: string[]; onChange: (v: string[]) => void; error?: string | undefined }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   useEffect(() => refs.current[0]?.focus(), []);
   const set = (i: number, d: string) => {
