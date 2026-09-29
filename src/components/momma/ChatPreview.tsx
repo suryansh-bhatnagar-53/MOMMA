@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, X } from "lucide-react";
 
 import { askMomma } from "@/lib/chat.functions";
 import { FAQ_BANK, getIntentReply } from "@/lib/momma-faq";
 
 type Msg = { id: number; from: "momma" | "user"; text: string };
 
-const CHIPS = FAQ_BANK.slice(0, 4).map((b) => b.q);
+const CHIPS = FAQ_BANK.slice(0, 5).map((b) => b.q);
 const GREETING =
   "Hi! I'm MOMMA. Tell me about your project, and I'll show you how I'd help you build a bot.";
 
@@ -46,6 +46,7 @@ export function ChatPreview() {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const idRef = useRef(1);
+  const genRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,7 +67,7 @@ export function ChatPreview() {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 72)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 88)}px`;
   }, [input]);
 
   const send = async (text: string) => {
@@ -80,6 +81,7 @@ export function ChatPreview() {
     setMsgs((m) => [...m, userMsg]);
     setInput("");
     setTyping(true);
+    const gen = genRef.current;
     const started = Date.now();
     let reply: string | null = null;
     try {
@@ -91,9 +93,17 @@ export function ChatPreview() {
     if (!reply) reply = getIntentReply(q);
     const wait = Math.max(0, 800 - (Date.now() - started));
     setTimeout(() => {
+      if (gen !== genRef.current) return;
       setMsgs((m) => [...m, { id: idRef.current++, from: "momma", text: reply! }]);
       setTyping(false);
     }, wait);
+  };
+
+  const clear = () => {
+    genRef.current++;
+    setMsgs([{ id: idRef.current++, from: "momma", text: GREETING }]);
+    setTyping(false);
+    setInput("");
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -113,7 +123,7 @@ export function ChatPreview() {
       <noscript>
         <style>{`.chat-live{display:none!important}`}</style>
       </noscript>
-      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1fr_360px] md:items-start">
+      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1fr_380px] md:items-start">
         <div className="max-w-[44ch]">
           <h2
             id="talk-heading"
@@ -122,32 +132,37 @@ export function ChatPreview() {
             Talk to MOMMA About Your Project
           </h2>
           <p className="mt-3 text-base text-pretty text-ink/65">
-            Ask anything—features, interview flow, versioning, privacy—and get instant, contextual
-            answers just like the real product would give.
+            Ask anything—features, interview flow, versioning, privacy, tech stack, roadmap—and get
+            instant, contextual answers just like the real product would give.
           </p>
           <p className="mt-6 text-sm text-ink/50">
-            A live AI preview focused on how MOMMA works — try describing your own project.
+            Type your own project idea or any question about how MOMMA works, and watch the AI respond
+            in real time.
           </p>
           <noscript>
             <div className="mt-8">
               <StaticFaq note="JavaScript is required for the live preview. Below are the most common questions." />
             </div>
           </noscript>
-          {reduced ? (
-            <div className="mt-8">
-              <StaticFaq />
-            </div>
-          ) : null}
         </div>
 
-        {!reduced ? (
-          <div className="chat-live flex w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_12px_30px_-14px_oklch(0.232_0.014_78.5/35%)] ring-1 ring-black/5 md:w-[360px]">
+        (
+          <div className="chat-live flex w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_12px_30px_-14px_oklch(0.232_0.014_78.5/35%)] ring-1 ring-black/5 md:w-[380px]">
             <div className="flex items-center gap-3 border-b px-4 py-3">
               <Avatar thinking={typing} />
               <div>
                 <p className="font-display text-sm font-semibold text-ink">MOMMA</p>
                 <p className="text-[11px] text-ink/50">{typing ? "thinking…" : "online"}</p>
               </div>
+              <button
+                type="button"
+                onClick={clear}
+                disabled={msgs.length === 1 && !typing}
+                aria-label="Clear chat"
+                className="ml-auto grid size-7 place-items-center rounded-full text-ink/50 hover:bg-cream hover:text-ink focus:outline-none focus:ring-2 focus:ring-brick/40 disabled:opacity-30"
+              >
+                <X className="size-4" />
+              </button>
             </div>
 
             <div
@@ -155,20 +170,20 @@ export function ChatPreview() {
               role="log"
               aria-live="polite"
               aria-label="Conversation with MOMMA"
-              className="max-h-[300px] min-h-[220px] space-y-3 overflow-y-auto px-4 py-4"
+              className="max-h-[340px] min-h-[220px] space-y-3 overflow-y-auto px-4 py-4"
             >
               {msgs.map((m) =>
                 m.from === "momma" ? (
                   <div key={m.id} className="tag-mat flex items-end gap-2">
                     <Avatar />
-                    <p className="max-w-[80%] rounded-[18px] rounded-bl-md bg-brick px-3.5 py-2.5 text-sm text-cream shadow-sm">
+                    <p className="max-w-[80%] rounded-[18px] rounded-bl-md bg-brick px-3.5 py-2.5 text-sm text-cream shadow-md">
                       <span className="sr-only">MOMMA: </span>
                       {m.text}
                     </p>
                   </div>
                 ) : (
                   <div key={m.id} className="tag-mat flex justify-end">
-                    <p className="max-w-[80%] rounded-[18px] rounded-br-md bg-cream px-3.5 py-2.5 text-sm text-ink shadow-sm ring-1 ring-black/5">
+                    <p className="max-w-[80%] rounded-[18px] rounded-br-md bg-cream px-3.5 py-2.5 text-sm text-ink shadow-md ring-1 ring-black/5">
                       <span className="sr-only">You: </span>
                       {m.text}
                     </p>
@@ -243,7 +258,7 @@ export function ChatPreview() {
               </button>
             </form>
           </div>
-        ) : null}
+        )
       </div>
     </section>
   );
