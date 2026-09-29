@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/auth/$")({
     handlers: {
       POST: async ({ request, params }) => {
         const action = params._splat ?? "";
-        let body: Record<string, unknown> = {};
+        let body: { [k: string]: unknown; a?: unknown } = {};
         try {
           body = await request.json();
         } catch {
@@ -33,24 +33,24 @@ export const Route = createFileRoute("/api/auth/$")({
             return ok ? json({ success: true }) : json({ success: false, message: "Security check failed." }, 400);
           }
           case "login":
-            if (!emailOk(body.email) || typeof body.password !== "string" || body.password.length < 8)
+            if (!emailOk(body["email"]) || typeof body["password"] !== "string" || body["password"].length < 8)
               return json({ message: "Invalid credentials." }, 401);
             return json({ success: true, token: "mock-token" });
           case "register":
-            if (!emailOk(body.email) || !pwOk(body.password))
+            if (!emailOk(body["email"]) || !pwOk(body["password"]))
               return json({ message: "Please check your email and password." }, 400);
             return json({ success: true, message: "OTP sent." });
           case "forgot-password":
-            if (!emailOk(body.email)) return json({ message: "Enter a valid email." }, 400);
+            if (!emailOk(body["email"])) return json({ message: "Enter a valid email." }, 400);
             return json({ success: true });
           case "resend-otp":
             return json({ success: true });
           case "verify-otp":
-            return body.otp === DEMO_OTP
+            return body["otp"] === DEMO_OTP
               ? json({ success: true, token: "mock-token" })
               : json({ message: "That code is invalid or expired." }, 400);
           case "reset-password":
-            if (!pwOk(body.password)) return json({ message: "Password too weak." }, 400);
+            if (!pwOk(body["password"])) return json({ message: "Password too weak." }, 400);
             return json({ success: true });
           default:
             return json({ message: "Not found." }, 404);

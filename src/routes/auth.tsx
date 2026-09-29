@@ -9,7 +9,7 @@ const description = "Log in to MOMMA or create an account to start building your
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" && s.next.startsWith("/") ? s.next : undefined,
+    next: typeof s["next"] === "string" && s["next"].startsWith("/") ? s["next"] : undefined,
   }),
   head: () => ({
     meta: [
