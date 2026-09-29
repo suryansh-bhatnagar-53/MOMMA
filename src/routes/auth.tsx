@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { z } from "zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import bg from "@/assets/auth-bg.jpg";
+import { supabase } from "@/integrations/supabase/client";
 
 const title = "Log in or sign up — M.O.M.M.A.";
 const description = "Log in to MOMMA or create an account to start building your customized AI bot.";
@@ -25,16 +26,19 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-/* ---------- mock API (see src/routes/api/auth/$.ts) ---------- */
-async function api(path: string, body: unknown) {
-  const res = await fetch(`/api/auth/${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message ?? "Something went wrong.");
-  return data;
+const friendly = (msg: string) => {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login")) return "Wrong email or password.";
+  if (m.includes("email not confirmed")) return "Please confirm your email first — check your inbox for the code.";
+  if (m.includes("already registered")) return "That email already has an account. Try logging in.";
+  if (m.includes("expired") || m.includes("invalid") && m.includes("token")) return "That code is invalid or expired.";
+  if (m.includes("rate limit") || m.includes("security purposes")) return "Too many attempts. Please wait a minute and try again.";
+  return msg;
+};
+async function check<T extends { error: { message: string } | null }>(p: Promise<T>): Promise<T> {
+  const r = await p;
+  if (r.error) throw new Error(friendly(r.error.message));
+  return r;
 }
 
 const emailSchema = z.string().trim().email("Enter a valid email address.").max(255);
@@ -56,7 +60,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [errors, setErrors] = useState<Partial<Record<"email"|"password"|"confirm"|"captcha"|"otp", string>>>({});
   const [banner, setBanner] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -104,6 +108,19 @@ function AuthPage() {
     }
   }
 
+  // If already signed in (or a confirmation link was clicked), go straight in.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && view === "form") done();
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" && view === "otp") done();
+    });
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  // Client-side math check. TODO: swap for hCaptcha/reCAPTCHA with server-side token verification.
   async function verifyCaptcha() {
     if (!captcha) {
       newCaptcha();
@@ -113,10 +130,7 @@ function AuthPage() {
       setErrors((e) => ({ ...e, captcha: "That sum isn't right — try again." }));
       throw new Error("Security check failed.");
     }
-    if (!captchaOk) {
-      await api("verify-captcha", { ...captcha, answer: Number(captchaAnswer) });
-      setCaptchaOk(true);
-    }
+    setCaptchaOk(true);
   }
 
   const onSubmitForm = (e: FormEvent) => {
@@ -136,15 +150,24 @@ function AuthPage() {
     run(async () => {
       await verifyCaptcha();
       if (tab === "login") {
-        await api("login", { email, password, remember });
-        // TODO: real auth — remember=true → long-lived refresh token in HTTP-only cookie.
+        await check(supabase.auth.signInWithPassword({ email: email.trim(), password }));
         done();
       } else {
-        await api("register", { email, password });
+        const { data } = await check(
+          supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/dashboard`,
+              data: { display_name: displayName.trim() || undefined },
+            },
+          }),
+        );
+        if (data.session) return done();
         setOtp(Array(6).fill(""));
         setView("otp");
         setCooldown(30);
-        setBanner({ kind: "success", text: "Account created! Check your inbox for a 6-digit code." });
+        setBanner({ kind: "success", text: "Account created! Check your inbox to confirm your email." });
       }
     });
   };
@@ -155,7 +178,9 @@ function AuthPage() {
     if (code.length !== 6) return setErrors({ otp: "Enter all 6 digits." });
     setErrors({});
     run(async () => {
-      await api("verify-otp", { email, otp: code });
+      await check(
+        supabase.auth.verifyOtp({ email: email.trim(), token: code, type: view === "forgot-otp" ? "recovery" : "signup" }),
+      );
       if (view === "forgot-otp") {
         setPassword("");
         setConfirm("");
@@ -171,11 +196,13 @@ function AuthPage() {
     if (!em.success) return setErrors({ email: em.error.issues[0]?.message ?? "Invalid email." });
     setErrors({});
     run(async () => {
-      await api("forgot-password", { email });
+      await check(
+        supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` }),
+      );
       setOtp(Array(6).fill(""));
       setView("forgot-otp");
       setCooldown(30);
-      setBanner({ kind: "success", text: "We sent a code to your email." });
+      setBanner({ kind: "success", text: "If that email has an account, we've sent reset instructions." });
     });
   };
 
@@ -188,20 +215,20 @@ function AuthPage() {
     setErrors(errs);
     if (Object.keys(errs).length) return;
     run(async () => {
-      await api("reset-password", { email, password });
-      setView("form");
-      setTab("login");
-      setPassword("");
-      setConfirm("");
-      setBanner({ kind: "success", text: "Password updated. You can log in now." });
+      await check(supabase.auth.updateUser({ password }));
+      done();
     });
   };
 
   const resend = () =>
     run(async () => {
-      await api("resend-otp", { email });
+      if (view === "forgot-otp") {
+        await check(supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` }));
+      } else {
+        await check(supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/dashboard` } }));
+      }
       setCooldown(30);
-      setBanner({ kind: "success", text: "A new code is on its way." });
+      setBanner({ kind: "success", text: "A new email is on its way." });
     });
 
   const heading =
@@ -293,16 +320,17 @@ function AuthPage() {
                   onRefresh={newCaptcha}
                 />
               )}
+              {tab === "signup" && (
+                <Field id="dname" label="Display name (optional)">
+                  <input id="dname" type="text" autoComplete="nickname" maxLength={60} value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} placeholder=" " />
+                </Field>
+              )}
               <PasswordField id="password" label="Password" value={password} onChange={setPassword} error={errors.password} autoComplete={tab === "login" ? "current-password" : "new-password"} />
               {tab === "signup" && (
                 <PasswordField id="confirm" label="Confirm password" value={confirm} onChange={setConfirm} error={errors.confirm} autoComplete="new-password" />
               )}
               {tab === "login" && (
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-brick" />
-                    Remember me
-                  </label>
+                <div className="flex items-center justify-end text-sm">
                   <button type="button" onClick={() => { setView("forgot-email"); setErrors({}); setBanner(null); }} className="font-medium text-brick hover:underline">
                     Forgot password?
                   </button>
@@ -321,8 +349,7 @@ function AuthPage() {
           {(view === "otp" || view === "forgot-otp") && (
             <form onSubmit={onVerifyOtp} className="mt-2 space-y-4">
               <p className="text-sm text-ink/70">
-                Enter the 6-digit code we sent to <strong className="text-ink">{email}</strong>.
-                <span className="block text-xs text-ink/50">Preview mode: use 123456.</span>
+                We sent an email to <strong className="text-ink">{email}</strong>. Enter the 6-digit code from it, or just click the link in the email.
               </p>
               <OtpInput value={otp} onChange={setOtp} error={errors.otp} />
               <SubmitButton loading={loading}>Verify</SubmitButton>
