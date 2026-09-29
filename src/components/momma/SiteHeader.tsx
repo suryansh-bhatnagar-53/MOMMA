@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 export function SiteHeader() {
   return (
     <header className="bg-paper">
@@ -21,6 +23,9 @@ export function SiteHeader() {
             <a href="#faq" className="hidden transition-colors hover:text-ink sm:inline">
               FAQ
             </a>
+            <Link to="/auth" search={{ next: undefined }} className="transition-colors hover:text-ink">
+              Log in
+            </Link>
             <a href="#start" className="font-semibold text-ink transition-colors hover:text-brick">
               Get Started →
             </a>
