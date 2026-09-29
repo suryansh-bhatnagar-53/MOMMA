@@ -1,75 +1,27 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { SendHorizontal } from "lucide-react";
+
+import { askMomma } from "@/lib/chat.functions";
+import { FAQ_BANK, getIntentReply } from "@/lib/momma-faq";
 
 type Msg = { id: number; from: "momma" | "user"; text: string };
 
-const BANK: { q: string; a: string; keys: string[] }[] = [
-  {
-    q: "How does the interview work?",
-    a: "I start by reading what you share—your description and any uploaded files. Then I spot what's missing or unclear and ask you targeted questions, one at a time, until I have enough context to generate a bot that truly fits your project.",
-    keys: ["interview", "question", "ask", "how does", "work"],
-  },
-  {
-    q: "What happens if my project changes?",
-    a: "When you add new context, I compare it to what I already know. Only the affected areas get re-interviewed; the rest of your knowledge stays intact, and I generate a new bot version from the updated understanding.",
-    keys: ["change", "update", "version", "evolve", "new"],
-  },
-  {
-    q: "Is my data private?",
-    a: "Absolutely. Your project, files, and chat history are stored only in your account. Nothing is shared between users or used for model training unless you explicitly opt-in later.",
-    keys: ["privacy", "private", "data", "secure", "security", "training"],
-  },
-  {
-    q: "Can I see a sample bot output?",
-    a: "Sure! After you finish the interview, MOMMA prepares a downloadable package that includes the bot's prompt/instructions, a short README, and any starter code—ready to drop into your repo or chat platform.",
-    keys: ["sample", "output", "example", "package", "download", "see"],
-  },
-  {
-    q: "Do I need to be a prompt-engineering expert?",
-    a: "No. I ask the questions so you don't have to guess what an AI needs. You just describe your project in your own words, and I handle the rest.",
-    keys: ["expert", "prompt", "engineer", "skill", "technical", "need to"],
-  },
-];
-
-const CHIPS = BANK.slice(0, 4).map((b) => b.q);
+const CHIPS = FAQ_BANK.slice(0, 4).map((b) => b.q);
 const GREETING =
   "Hi! I'm MOMMA. Tell me about your project, and I'll show you how I'd help you build a bot.";
-const FALLBACK =
-  "Good question. In the full product I'd dig into that with you during the interview. For this preview, try asking about the interview, project changes, privacy, sample output, or whether you need prompt-engineering skills.";
 
-function answerFor(input: string) {
-  const t = input.toLowerCase();
-  const exact = BANK.find((b) => b.q.toLowerCase() === t);
-  if (exact) return exact.a;
-  let best: { a: string; score: number } = { a: FALLBACK, score: 0 };
-  for (const b of BANK) {
-    const score = b.keys.filter((k) => t.includes(k)).length;
-    if (score > best.score) best = { a: b.a, score };
-  }
-  if (best.score === 0 && t.split(/\s+/).length > 5)
-    return "That sounds like a great project. My next step would be reading it closely, then asking you about the parts only you know—like who uses it and what the bot should own. Want to know how the interview works?";
-  return best.a;
+function withTimeout<T>(p: Promise<T>, ms: number) {
+  return Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
 }
 
-function Avatar({ thinking }: { thinking: boolean }) {
+function Avatar({ thinking }: { thinking?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="relative grid size-8 shrink-0 place-items-center rounded-full bg-brick"
+      className={`grid size-7 shrink-0 place-items-center rounded-full bg-brick/15 text-sm ring-1 ring-brick/20 ${thinking ? "node-pulse" : ""}`}
     >
-      <svg viewBox="0 0 24 12" className="w-5 stroke-cream" fill="none" strokeWidth="1.8">
-        {[3, 8, 12, 16, 21].map((x, i) => (
-          <line
-            key={x}
-            x1={x}
-            x2={x}
-            y1={3}
-            y2={9}
-            strokeLinecap="round"
-            className={thinking ? "wave-bar" : ""}
-            style={{ animationDelay: `${i * 0.12}s`, transformOrigin: "center" }}
-          />
-        ))}
-      </svg>
+      🛡️
     </span>
   );
 }
@@ -79,7 +31,7 @@ function StaticFaq({ note }: { note?: string }) {
     <div>
       {note ? <p className="mb-4 text-sm text-ink/60">{note}</p> : null}
       <div className="space-y-3">
-        {BANK.map((b) => (
+        {FAQ_BANK.map((b) => (
           <details key={b.q} className="rounded-xl bg-paper px-5 py-4 ring-1 ring-black/5">
             <summary className="cursor-pointer text-sm font-semibold text-ink">{b.q}</summary>
             <p className="mt-2 text-sm text-ink/65">{b.a}</p>
@@ -91,12 +43,14 @@ function StaticFaq({ note }: { note?: string }) {
 }
 
 export function ChatPreview() {
+  const ask = useServerFn(askMomma);
   const [reduced, setReduced] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, from: "momma", text: GREETING }]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const idRef = useRef(1);
   const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -111,24 +65,50 @@ export function ChatPreview() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs, typing]);
 
-  const send = (text: string) => {
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 72)}px`;
+  }, [input]);
+
+  const send = async (text: string) => {
     const q = text.trim();
     if (!q || typing) return;
-    setMsgs((m) => [...m, { id: idRef.current++, from: "user", text: q }]);
+    const userMsg: Msg = { id: idRef.current++, from: "user", text: q };
+    const history = [...msgs.slice(1), userMsg].slice(-10).map((m) => ({
+      role: m.from === "user" ? ("user" as const) : ("assistant" as const),
+      content: m.text,
+    }));
+    setMsgs((m) => [...m, userMsg]);
     setInput("");
     setTyping(true);
-    window.setTimeout(
-      () => {
-        setMsgs((m) => [...m, { id: idRef.current++, from: "momma", text: answerFor(q) }]);
-        setTyping(false);
-      },
-      800 + Math.random() * 400,
-    );
+    const started = Date.now();
+    let reply: string | null = null;
+    try {
+      const res = await withTimeout(ask({ data: { messages: history } }), 8000);
+      reply = res?.reply ?? null;
+    } catch {
+      reply = null;
+    }
+    if (!reply) reply = getIntentReply(q);
+    const wait = Math.max(0, 800 - (Date.now() - started));
+    setTimeout(() => {
+      setMsgs((m) => [...m, { id: idRef.current++, from: "momma", text: reply! }]);
+      setTyping(false);
+    }, wait);
   };
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    send(input);
+    void send(input);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void send(input);
+    }
   };
 
   return (
@@ -136,7 +116,7 @@ export function ChatPreview() {
       <noscript>
         <style>{`.chat-live{display:none!important}`}</style>
       </noscript>
-      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1fr_360px] md:items-stretch">
+      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1fr_360px] md:items-start">
         <div className="max-w-[44ch]">
           <h2
             id="talk-heading"
@@ -149,8 +129,7 @@ export function ChatPreview() {
             answers just like the real product would give.
           </p>
           <p className="mt-6 text-sm text-ink/50">
-            This is a preview with pre-written answers — a feel for how MOMMA listens and responds,
-            not the full product.
+            A live AI preview focused on how MOMMA works — try describing your own project.
           </p>
           <noscript>
             <div className="mt-8">
@@ -165,12 +144,12 @@ export function ChatPreview() {
         </div>
 
         {!reduced ? (
-          <div className="chat-live flex h-[520px] w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_12px_30px_-14px_oklch(0.232_0.014_78.5/35%)] ring-1 ring-black/5 md:w-[360px]">
+          <div className="chat-live flex w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_12px_30px_-14px_oklch(0.232_0.014_78.5/35%)] ring-1 ring-black/5 md:w-[360px]">
             <div className="flex items-center gap-3 border-b px-4 py-3">
               <Avatar thinking={typing} />
               <div>
                 <p className="font-display text-sm font-semibold text-ink">MOMMA</p>
-                <p className="text-[11px] text-ink/50">{typing ? "thinking…" : "preview"}</p>
+                <p className="text-[11px] text-ink/50">{typing ? "thinking…" : "online"}</p>
               </div>
             </div>
 
@@ -179,32 +158,33 @@ export function ChatPreview() {
               role="log"
               aria-live="polite"
               aria-label="Conversation with MOMMA"
-              className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
+              className="max-h-[300px] min-h-[220px] space-y-3 overflow-y-auto px-4 py-4"
             >
-              {msgs.map((m) => (
-                <div
-                  key={m.id}
-                  className={`tag-mat flex ${m.from === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <p
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
-                      m.from === "momma"
-                        ? "rounded-bl-md bg-brick text-cream"
-                        : "rounded-br-md bg-cream text-ink ring-1 ring-black/5"
-                    }`}
-                  >
-                    <span className="sr-only">{m.from === "momma" ? "MOMMA: " : "You: "}</span>
-                    {m.text}
-                  </p>
-                </div>
-              ))}
+              {msgs.map((m) =>
+                m.from === "momma" ? (
+                  <div key={m.id} className="tag-mat flex items-end gap-2">
+                    <Avatar />
+                    <p className="max-w-[80%] rounded-[18px] rounded-bl-md bg-brick px-3.5 py-2.5 text-sm text-cream shadow-sm">
+                      <span className="sr-only">MOMMA: </span>
+                      {m.text}
+                    </p>
+                  </div>
+                ) : (
+                  <div key={m.id} className="tag-mat flex justify-end">
+                    <p className="max-w-[80%] rounded-[18px] rounded-br-md bg-cream px-3.5 py-2.5 text-sm text-ink shadow-sm ring-1 ring-black/5">
+                      <span className="sr-only">You: </span>
+                      {m.text}
+                    </p>
+                  </div>
+                ),
+              )}
               {msgs.length === 1 ? (
-                <div className="flex flex-wrap gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1 pl-9">
                   {CHIPS.map((c) => (
                     <button
                       key={c}
                       type="button"
-                      onClick={() => send(c)}
+                      onClick={() => void send(c)}
                       className="rounded-full bg-cream px-3 py-1.5 text-xs font-medium text-ink/80 ring-1 ring-black/10 transition-colors hover:bg-mustard/30 focus:outline-none focus:ring-2 focus:ring-brick/40"
                     >
                       {c}
@@ -213,12 +193,13 @@ export function ChatPreview() {
                 </div>
               ) : null}
               {typing ? (
-                <div className="flex" aria-label="MOMMA is typing">
-                  <span className="flex gap-1 rounded-2xl rounded-bl-md bg-brick/15 px-3.5 py-3">
+                <div className="flex items-end gap-2" aria-label="MOMMA is typing">
+                  <Avatar thinking />
+                  <span className="flex gap-1 rounded-[18px] rounded-bl-md bg-brick px-3.5 py-3">
                     {[0, 1, 2].map((i) => (
                       <span
                         key={i}
-                        className="typing-dot size-1.5 rounded-full bg-brick"
+                        className="typing-dot size-1.5 rounded-full bg-cream"
                         style={{ animationDelay: `${i * 0.15}s` }}
                       />
                     ))}
@@ -233,7 +214,7 @@ export function ChatPreview() {
                   <button
                     key={c}
                     type="button"
-                    onClick={() => send(c)}
+                    onClick={() => void send(c)}
                     disabled={typing}
                     className="shrink-0 rounded-full bg-cream px-2.5 py-1 text-[11px] text-ink/70 ring-1 ring-black/10 hover:bg-mustard/30 focus:outline-none focus:ring-2 focus:ring-brick/40 disabled:opacity-50"
                   >
@@ -243,24 +224,25 @@ export function ChatPreview() {
               </div>
             ) : null}
 
-            <form onSubmit={onSubmit} className="flex gap-2 border-t px-3 py-3">
-              <label htmlFor="chat-input" className="sr-only">
-                Ask MOMMA a question
-              </label>
-              <input
-                id="chat-input"
+            <form onSubmit={onSubmit} className="flex items-end gap-2 border-t px-3 py-3">
+              <textarea
+                ref={inputRef}
+                rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your project…"
-                className="min-w-0 flex-1 rounded-lg bg-cream px-3 py-2 text-sm text-ink ring-1 ring-black/5 outline-none placeholder:text-ink/35 focus:ring-2 focus:ring-brick/40"
+                onKeyDown={onKeyDown}
+                aria-label="Ask MOMMA a question"
+                placeholder="Ask MOMMA…"
+                maxLength={1000}
+                className="min-w-0 flex-1 resize-none rounded-lg bg-cream px-3 py-2 text-sm text-ink ring-1 ring-black/5 outline-none placeholder:text-ink/35 focus:ring-2 focus:ring-brick/40"
               />
               <button
                 type="submit"
                 disabled={!input.trim() || typing}
                 aria-label="Send message"
-                className="rounded-lg bg-ink px-3.5 py-2 text-xs font-semibold text-cream transition-colors hover:bg-ink/90 disabled:opacity-40"
+                className="grid size-9 place-items-center rounded-lg bg-ink text-cream transition-colors hover:bg-ink/90 disabled:opacity-40"
               >
-                Send
+                <SendHorizontal className="size-4" />
               </button>
             </form>
           </div>
