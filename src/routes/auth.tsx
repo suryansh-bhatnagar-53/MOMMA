@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2, Github, Apple, Chrome } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import bg from "@/assets/auth-bg.jpg";
 
 const title = "Log in or sign up — M.O.M.M.A.";
@@ -355,32 +355,6 @@ function AuthPage() {
           )}
         </div>
 
-        {view === "form" && (
-          <div className="mt-6">
-            {/* TODO: social login (Google, GitHub, Apple) — wire OAuth here. */}
-            {/* TODO: password-less login (magic link) and MFA entry points. */}
-            <div className="flex items-center gap-3 text-xs text-ink/50">
-              <span className="h-px flex-1 bg-line" /> Coming soon <span className="h-px flex-1 bg-line" />
-            </div>
-            <div className="mt-3 flex justify-center gap-3">
-              {[
-                { Icon: Chrome, name: "Google" },
-                { Icon: Github, name: "GitHub" },
-                { Icon: Apple, name: "Apple" },
-              ].map(({ Icon, name }) => (
-                <button key={name} type="button" disabled aria-label={`${name} sign-in (coming soon)`} className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-lg border border-line text-ink/35">
-                  <Icon className="h-4 w-4" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <footer className="mt-6 flex justify-center gap-4 text-[0.8rem] text-ink/60">
-          <a href="#" className="hover:text-ink">Privacy Policy</a>
-          <a href="#" className="hover:text-ink">Terms of Service</a>
-          <a href="#" className="hover:text-ink">Help</a>
-        </footer>
       </main>
     </div>
   );
