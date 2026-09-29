@@ -10,6 +10,7 @@ const description = "Log in to MOMMA or create an account to start building your
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
     next: typeof s["next"] === "string" && s["next"].startsWith("/") ? s["next"] : undefined,
+    tab: s["tab"] === "signup" ? ("signup" as const) : undefined,
   }),
   head: () => ({
     meta: [
@@ -49,8 +50,8 @@ type View = "form" | "otp" | "forgot-email" | "forgot-otp" | "forgot-new";
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { next } = Route.useSearch();
-  const [tab, setTab] = useState<Tab>("login");
+  const { next, tab: initialTab } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(initialTab ?? "login");
   const [view, setView] = useState<View>("form");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
