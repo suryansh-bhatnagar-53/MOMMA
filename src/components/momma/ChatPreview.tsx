@@ -41,7 +41,6 @@ function StaticFaq({ note }: { note?: string }) {
 
 export function ChatPreview() {
   const ask = useServerFn(askMomma);
-  const [reduced, setReduced] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, from: "momma", text: GREETING }]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -50,13 +49,6 @@ export function ChatPreview() {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const on = () => setReduced(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
 
   useEffect(() => {
     const el = listRef.current;
@@ -146,7 +138,6 @@ export function ChatPreview() {
           </noscript>
         </div>
 
-        (
           <div className="chat-live flex w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_12px_30px_-14px_oklch(0.232_0.014_78.5/35%)] ring-1 ring-black/5 md:w-[380px]">
             <div className="flex items-center gap-3 border-b px-4 py-3">
               <Avatar thinking={typing} />
@@ -258,7 +249,6 @@ export function ChatPreview() {
               </button>
             </form>
           </div>
-        )
       </div>
     </section>
   );
