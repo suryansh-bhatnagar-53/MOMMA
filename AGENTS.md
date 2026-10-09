@@ -11,3 +11,4 @@
 
 - Project data (projects, project_timeline) is read/written from the browser Supabase client; RLS on user_id is the isolation boundary, so every new project table must carry user_id with owner-only policies.
 - Projects are soft-deleted via is_deleted; list/get queries must filter is_deleted=false.
+- Uploaded project files live in the private `project-files` bucket under `<user_id>/<project_id>/`; storage policies key on the first folder, and text extraction runs in the browser (pdfjs/mammoth, lazy-loaded).
