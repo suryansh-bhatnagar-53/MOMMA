@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      interview_questions: {
+        Row: {
+          answer_text: string | null
+          answered_at: string | null
+          created_at: string
+          id: string
+          is_clarification_needed: boolean
+          kind: string
+          ord: number
+          project_id: string
+          source: string | null
+          text: string
+          user_id: string
+        }
+        Insert: {
+          answer_text?: string | null
+          answered_at?: string | null
+          created_at?: string
+          id?: string
+          is_clarification_needed?: boolean
+          kind?: string
+          ord: number
+          project_id: string
+          source?: string | null
+          text: string
+          user_id?: string
+        }
+        Update: {
+          answer_text?: string | null
+          answered_at?: string | null
+          created_at?: string
+          id?: string
+          is_clarification_needed?: boolean
+          kind?: string
+          ord?: number
+          project_id?: string
+          source?: string | null
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_questions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_sessions: {
+        Row: {
+          ended_at: string | null
+          is_paused: boolean
+          project_id: string
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ended_at?: string | null
+          is_paused?: boolean
+          project_id: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          ended_at?: string | null
+          is_paused?: boolean
+          project_id?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
