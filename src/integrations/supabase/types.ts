@@ -35,6 +35,74 @@ export type Database = {
         }
         Relationships: []
       }
+      project_timeline: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          project_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id: string
+          type: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_timeline_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_deleted: boolean
+          name: string
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_deleted?: boolean
+          name: string
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_deleted?: boolean
+          name?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -43,7 +111,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      project_status:
+        | "Draft"
+        | "Analyzing"
+        | "Interviewing"
+        | "Ready"
+        | "Generated"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -170,6 +243,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      project_status: [
+        "Draft",
+        "Analyzing",
+        "Interviewing",
+        "Ready",
+        "Generated",
+      ],
+    },
   },
 } as const
