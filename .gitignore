@@ -31,5 +31,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local team setup notes (not committed)
+# Local notes (not committed)
 SETUP.md
+BATCHES.md

@@ -39,10 +39,10 @@ export function AnalysisPanel({ projectId, status }: { projectId: string; status
       return data;
     },
   });
-  // Shares the InterviewPanel cache entry. Once a session exists, its questions were built from
-  // this analysis, so regenerating it would leave them out of sync.
+  // Shares the InterviewPanel cache entry. While a round is open its questions come from this
+  // analysis, so re-analysis waits until that round is confirmed; the next round asks only the delta.
   const interview = useQuery({ queryKey: ["interview", projectId], queryFn: () => interviewApi.load(projectId) });
-  const interviewStarted = !!interview.data?.session;
+  const roundOpen = !!interview.data?.session && !interview.data.session.ended_at;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function AnalysisPanel({ projectId, status }: { projectId: string; status
     );
 
   const run = async () => {
-    if (interviewStarted) return;
+    if (roundOpen) return;
     if (analysis.data && !confirm("Re-analyze from your context? Your edits here will be replaced.")) return;
     setBusy("MOMMA is reading your project…");
     setMsg(null);
@@ -90,6 +90,11 @@ export function AnalysisPanel({ projectId, status }: { projectId: string; status
     setMsg(null);
     try {
       if (!(await save())) return;
+      // Immutable snapshot of what was confirmed; later interview rounds diff against it.
+      const { error: ve } = await supabase
+        .from("project_analysis_versions")
+        .upsert({ project_id: projectId, version: analysis.data!.version, ...fromDraft(draft!) }, { onConflict: "project_id,version", ignoreDuplicates: true });
+      if (ve) throw ve;
       const { error } = await supabase.from("project_analyses").update({ confirmed_at: new Date().toISOString() }).eq("project_id", projectId);
       if (error) throw error;
       await projectApi.update(projectId, { status: "Interviewing" });
@@ -152,11 +157,11 @@ export function AnalysisPanel({ projectId, status }: { projectId: string; status
       ))}
       {msg && <p className="text-sm text-brick">{msg}</p>}
       {busy && <p className="flex items-center gap-2 text-sm text-ink/70"><Loader2 className="h-4 w-4 animate-spin" />{busy}</p>}
-      {interviewStarted && (
-        <p className="text-xs text-ink/60">The interview has started, so re-analysis is locked. You can still edit the fields above.</p>
+      {roundOpen && (
+        <p className="text-xs text-ink/60">An interview round is in progress. Confirm it before re-analysing; MOMMA will then only ask about what changed.</p>
       )}
       <div className="flex flex-wrap justify-end gap-3 border-t border-line pt-4">
-        <button type="button" onClick={run} disabled={!!busy || interviewStarted} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-cream disabled:opacity-50">
+        <button type="button" onClick={run} disabled={!!busy || roundOpen} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-cream disabled:opacity-50">
           <RefreshCw className="h-4 w-4" /> Re-analyze
         </button>
         {!confirmed && (

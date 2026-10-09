@@ -24,6 +24,7 @@ export type Database = {
           kind: string
           ord: number
           project_id: string
+          round: number
           source: string | null
           text: string
           user_id: string
@@ -37,6 +38,7 @@ export type Database = {
           kind?: string
           ord: number
           project_id: string
+          round?: number
           source?: string | null
           text: string
           user_id?: string
@@ -50,6 +52,7 @@ export type Database = {
           kind?: string
           ord?: number
           project_id?: string
+          round?: number
           source?: string | null
           text?: string
           user_id?: string
@@ -66,25 +69,31 @@ export type Database = {
       }
       interview_sessions: {
         Row: {
+          analysis_version: number | null
           ended_at: string | null
           is_paused: boolean
           project_id: string
+          round: number
           started_at: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          analysis_version?: number | null
           ended_at?: string | null
           is_paused?: boolean
           project_id: string
+          round?: number
           started_at?: string
           updated_at?: string
           user_id?: string
         }
         Update: {
+          analysis_version?: number | null
           ended_at?: string | null
           is_paused?: boolean
           project_id?: string
+          round?: number
           started_at?: string
           updated_at?: string
           user_id?: string
@@ -93,7 +102,7 @@ export type Database = {
           {
             foreignKeyName: "interview_sessions_project_id_fkey"
             columns: ["project_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -168,6 +177,53 @@ export type Database = {
             foreignKeyName: "project_analyses_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_analysis_versions: {
+        Row: {
+          assumptions: Json
+          confirmed_at: string
+          contradictions: Json
+          goal: string
+          missing_info: Json
+          project_id: string
+          todo_items: Json
+          understood_facts: Json
+          user_id: string
+          version: number
+        }
+        Insert: {
+          assumptions?: Json
+          confirmed_at?: string
+          contradictions?: Json
+          goal?: string
+          missing_info?: Json
+          project_id: string
+          todo_items?: Json
+          understood_facts?: Json
+          user_id?: string
+          version: number
+        }
+        Update: {
+          assumptions?: Json
+          confirmed_at?: string
+          contradictions?: Json
+          goal?: string
+          missing_info?: Json
+          project_id?: string
+          todo_items?: Json
+          understood_facts?: Json
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_analysis_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },

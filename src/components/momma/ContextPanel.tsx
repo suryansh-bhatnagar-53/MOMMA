@@ -165,7 +165,7 @@ export function ContextPanel({ projectId, userId, status }: { projectId: string;
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
         <p className="text-xs text-ink/60">
-          {status === "Draft" ? "When you're ready, MOMMA will read everything above." : "Analysis has started. You can still add more context."}
+          {status === "Draft" ? "When you're ready, MOMMA will read everything above." : "Added something new? Use Re-analyse in the Analysis section; MOMMA will only interview you about what changed."}
         </p>
         {status === "Draft" && (
           <button type="button" onClick={analyze} disabled={!hasContext || !!busy} className="inline-flex items-center gap-2 rounded-lg bg-brick px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">

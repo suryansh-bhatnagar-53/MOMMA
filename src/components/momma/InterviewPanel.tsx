@@ -47,11 +47,13 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
       const { data, error } = await supabase.from("project_analyses").select("*").eq("project_id", projectId).maybeSingle();
       if (error) throw error;
       if (!data?.confirmed_at) throw new Error("not confirmed");
-      await interviewApi.start(projectId, data as never);
+      await interviewApi.start(projectId, data as never, data.version);
     }, "Couldn't start. Make sure the analysis is confirmed first.");
 
+  const roundQs = session ? questions.filter((q) => q.round === session.round) : [];
+
   // A session without questions means an earlier start only half finished.
-  if (session && questions.length === 0)
+  if (session && roundQs.length === 0)
     return (
       <div className="px-4 pb-5">
         <p className="text-sm text-ink/70">The interview was started but its questions weren't saved.</p>
@@ -74,13 +76,16 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
     );
   }
 
-  const answered = questions.filter((q) => q.answered_at);
-  const currentIdx = questions.findIndex((q) => !q.answered_at);
-  const current = currentIdx >= 0 ? questions[currentIdx] : null;
-  const next = currentIdx >= 0 ? questions[currentIdx + 1] : undefined;
+  const answered = roundQs.filter((q) => q.answered_at);
+  const currentIdx = roundQs.findIndex((q) => !q.answered_at);
+  const current = currentIdx >= 0 ? roundQs[currentIdx] : null;
+  const next = currentIdx >= 0 ? roundQs[currentIdx + 1] : undefined;
   const ended = !!session.ended_at;
+  // Status only returns to Interviewing after a newer analysis is confirmed.
+  const newRoundReady = ended && status === "Interviewing";
   const paused = session.is_paused && !ended;
-  const label = ended ? "Completed" : paused ? "Paused" : current ? "In progress" : "All questions answered";
+  const label = `${session.round > 1 ? `Round ${session.round} · ` : ""}${ended ? "Completed" : paused ? "Paused" : current ? "In progress" : "All questions answered"}`;
+  const rounds = [...new Set(questions.map((q) => q.round))];
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -96,11 +101,22 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
     <div className="space-y-4 px-4 pb-5">
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <span className={`rounded-full border px-3 py-0.5 font-semibold ${ended ? "border-moss/40 bg-moss/15 text-moss" : paused ? "border-mustard bg-mustard/20 text-ink" : "border-brick/40 bg-brick/10 text-brick"}`}>{label}</span>
-        <span className="text-ink/60">{answered.length} of {questions.length} answered</span>
+        <span className="text-ink/60">{answered.length} of {roundQs.length} answered</span>
         <div className="h-1.5 min-w-24 flex-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
-          <div className="h-full bg-brick transition-all" style={{ width: `${(answered.length / Math.max(1, questions.length)) * 100}%` }} />
+          <div className="h-full bg-brick transition-all" style={{ width: `${(answered.length / Math.max(1, roundQs.length)) * 100}%` }} />
         </div>
       </div>
+
+      {newRoundReady && (
+        <div className="rounded-xl border border-brick/40 bg-brick/5 p-4">
+          <p className="text-sm">
+            You confirmed an updated analysis. MOMMA will only ask about gaps that are new since round {session.round}; your earlier answers are kept.
+          </p>
+          <button type="button" onClick={start} disabled={busy} className="mt-3 rounded-lg bg-brick px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+            {busy ? "Preparing questions…" : `Start round ${session.round + 1}`}
+          </button>
+        </div>
+      )}
 
       {current && !ended && (
         <form onSubmit={submit} className="rounded-xl border border-line bg-paper p-4">
@@ -120,11 +136,11 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
           />
           <div className="mt-3 flex flex-wrap justify-end gap-3">
             {paused ? (
-              <button type="button" onClick={() => act(() => interviewApi.setPaused(projectId, false), "Couldn't resume.")} disabled={busy} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-cream disabled:opacity-50">
+              <button type="button" onClick={() => act(() => interviewApi.setPaused(projectId, session.round, false), "Couldn't resume.")} disabled={busy} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-cream disabled:opacity-50">
                 <Play className="h-4 w-4" /> Resume
               </button>
             ) : (
-              <button type="button" onClick={() => act(() => interviewApi.setPaused(projectId, true), "Couldn't pause.")} disabled={busy} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-cream disabled:opacity-50">
+              <button type="button" onClick={() => act(() => interviewApi.setPaused(projectId, session.round, true), "Couldn't pause.")} disabled={busy} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-cream disabled:opacity-50">
                 <Pause className="h-4 w-4" /> Pause
               </button>
             )}
@@ -144,7 +160,7 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
           </p>
           <button
             type="button"
-            onClick={() => (current && !confirm("Finish the interview with unanswered questions?") ? undefined : act(() => interviewApi.confirm(projectId, answered.length), "Couldn't confirm the interview."))}
+            onClick={() => (current && !confirm("Finish the interview with unanswered questions?") ? undefined : act(() => interviewApi.confirm(projectId, session.round, answered.length), "Couldn't confirm the interview."))}
             disabled={busy || answered.length === 0}
             className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50"
           >
@@ -153,17 +169,24 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
         </div>
       )}
 
-      {answered.length > 0 && (
+      {questions.some((q) => q.answered_at) && (
         <div>
           <h3 className="font-display text-sm font-semibold">Interview summary</h3>
-          <ol className="mt-2 space-y-3">
-            {answered.map((q, i) => (
-              <li key={q.id} className="rounded-lg border border-line bg-paper/60 p-3 text-sm">
-                <p className="text-ink/70"><span className="font-semibold text-ink">Q{i + 1}{q.kind === "followup" ? " (follow-up)" : ""}:</span> {q.text}</p>
-                <p className="mt-1"><span className="font-semibold">A:</span> {q.answer_text}</p>
-              </li>
-            ))}
-          </ol>
+          {rounds.map((r) => (
+            <div key={r}>
+              {rounds.length > 1 && <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-ink/50">Round {r}</p>}
+              <ol className="mt-2 space-y-3">
+                {questions
+                  .filter((q) => q.round === r && q.answered_at)
+                  .map((q, i) => (
+                    <li key={q.id} className="rounded-lg border border-line bg-paper/60 p-3 text-sm">
+                      <p className="text-ink/70"><span className="font-semibold text-ink">Q{i + 1}{q.kind === "followup" ? " (follow-up)" : ""}:</span> {q.text}</p>
+                      <p className="mt-1"><span className="font-semibold">A:</span> {q.answer_text}</p>
+                    </li>
+                  ))}
+              </ol>
+            </div>
+          ))}
         </div>
       )}
     </div>
