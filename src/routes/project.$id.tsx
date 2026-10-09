@@ -152,7 +152,7 @@ function ProjectDetail() {
             {SECTIONS.map((s) => {
               const unlocked = stage >= s.unlockAt;
               return (
-                <details key={s.title} open={s.title === "Context" || (s.title === "Analysis" && unlocked) ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
+                <details key={s.title} open={s.title === "Context" || ((s.title === "Analysis" || s.title === "Interview") && unlocked) ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
                   <summary
                     className={`flex list-none items-center justify-between px-4 py-3 font-display font-semibold ${unlocked ? "cursor-pointer" : "pointer-events-none"}`}
                     aria-disabled={!unlocked}
