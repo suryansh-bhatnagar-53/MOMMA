@@ -6,6 +6,7 @@ import { projectApi, statusClass, STATUSES, formatEvent, type Project } from "@/
 import { useSignedInUser } from "./dashboard";
 import { ContextPanel } from "@/components/momma/ContextPanel";
 import { AnalysisPanel } from "@/components/momma/AnalysisPanel";
+import { InterviewPanel } from "@/components/momma/InterviewPanel";
 
 export const Route = createFileRoute("/project/$id")({
   ssr: false,
@@ -163,6 +164,8 @@ function ProjectDetail() {
                     <ContextPanel projectId={id} userId={user.id} status={project.data!.status} />
                   ) : s.title === "Analysis" && unlocked ? (
                     <AnalysisPanel projectId={id} status={project.data!.status} />
+                  ) : s.title === "Interview" && unlocked ? (
+                    <InterviewPanel projectId={id} status={project.data!.status} />
                   ) : (
                     <p className="px-4 pb-4 text-sm text-ink/70">{s.note}</p>
                   )}
