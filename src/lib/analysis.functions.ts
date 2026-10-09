@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { geminiGenerate } from "./gemini";
 
 export type AnalysisFields = {
   goal: string;
@@ -14,7 +15,7 @@ export type AnalysisFields = {
 const LIST_KEYS = ["understood_facts", "assumptions", "missing_info", "contradictions", "todo_items"] as const;
 
 const SYSTEM = `You are MOMMA, an analyst who reads a user's project context before interviewing them to build a project-specific AI bot.
-Return ONLY a JSON object with keys: goal (one or two sentences: what they're building and for whom), understood_facts (clearly stated facts), assumptions (things you inferred that are not explicit), missing_info (open questions the interview must answer), contradictions (conflicting statements; empty if none), todo_items (concrete interview prompts, phrased as questions to the user).
+Return ONLY a JSON object with keys: goal (one or two sentences: what they're building and for whom), understood_facts (clearly stated facts), assumptions (things you inferred that are not explicit), missing_info (open questions the interview must answer), contradictions (conflicting statements; empty if none), todo_items (other concrete interview prompts, phrased as questions to the user; never repeat a missing_info item here).
 Each list: 0-8 short plain-language strings. Never invent facts that aren't in or reasonably implied by the context.`;
 
 // Placeholder used when the AI is unreachable.
@@ -49,40 +50,34 @@ function clean(v: unknown): AnalysisFields {
   };
 }
 
+const LIST = { type: "ARRAY", items: { type: "STRING" } };
+const SCHEMA = {
+  type: "OBJECT",
+  properties: { goal: { type: "STRING" }, ...Object.fromEntries(LIST_KEYS.map((k) => [k, LIST])) },
+  required: ["goal", ...LIST_KEYS],
+};
+
 async function callAI(raw: string): Promise<AnalysisFields | null> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) return null;
+  const content = await geminiGenerate({
+    label: "analysis",
+    system: SYSTEM,
+    messages: [{ role: "user", content: raw.slice(0, 60000) }],
+    json: true,
+    schema: SCHEMA,
+  });
+  if (!content) return null;
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: raw.slice(0, 60000) },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!res.ok) {
-      console.error("analysis gateway", res.status, await res.text());
-      return null;
-    }
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = json.choices?.[0]?.message?.content ?? "";
-    const parsed = JSON.parse(content.replace(/^```(json)?|```$/g, "").trim());
-    const out = clean(parsed);
+    const out = clean(JSON.parse(content.replace(/^```(json)?|```$/g, "").trim()));
     return out.goal ? out : null;
   } catch (e) {
-    console.error("analysis failed", e);
+    console.error("analysis: unparseable AI output", e);
     return null;
   }
 }
 
 export const generateAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ projectId: z.string().uuid() }).parse(d))
+  .validator((d) => z.object({ projectId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
     const [proj, ctx, files, prev] = await Promise.all([

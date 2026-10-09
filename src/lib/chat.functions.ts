@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { FAQ_BANK } from "./momma-faq";
+import { geminiGenerate } from "./gemini";
 
 const schema = z.object({
   messages: z
@@ -16,57 +17,7 @@ Keep replies to 1-3 short sentences, plain language, no markdown. Ground answers
 ${FAQ_BANK.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n")}`;
 
 export const askMomma = createServerFn({ method: "POST" })
-  .inputValidator((data) => schema.parse(data))
-  .handler(async ({ data }) => {
-    const key = process.env["LOVABLE_API_KEY"];
-    if (!key) return { reply: null as string | null };
-    try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
-        method: "POST",
-        headers: {
-          "Lovable-API-Key": key,
-          "X-Lovable-AIG-SDK": "fetch",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-6-astra",
-          instructions: SYSTEM,
-          input: data.messages.map((m) => ({ role: m.role, content: m.content })),
-          stream: true,
-          store: false,
-          reasoning: { effort: "low", summary: "auto" },
-          include: ["reasoning.encrypted_content"],
-        }),
-      });
-      if (!res.ok || !res.body) {
-        console.error("askMomma gateway", res.status, await res.text());
-        return { reply: null };
-      }
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      let text = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (!payload || payload === "[DONE]") continue;
-          try {
-            const ev = JSON.parse(payload) as { type?: string; delta?: string };
-            if (ev.type === "response.output_text.delta" && ev.delta) text += ev.delta;
-          } catch {
-            /* ignore partial */
-          }
-        }
-      }
-      return { reply: text.trim() || null };
-    } catch (e) {
-      console.error("askMomma", e);
-      return { reply: null };
-    }
-  });
+  .validator((data) => schema.parse(data))
+  .handler(async ({ data }) => ({
+    reply: await geminiGenerate({ label: "askMomma", system: SYSTEM, messages: data.messages }),
+  }));
