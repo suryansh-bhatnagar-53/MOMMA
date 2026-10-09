@@ -35,6 +35,59 @@ export type Database = {
         }
         Relationships: []
       }
+      project_analyses: {
+        Row: {
+          assumptions: Json
+          confirmed_at: string | null
+          contradictions: Json
+          created_at: string
+          goal: string
+          missing_info: Json
+          project_id: string
+          todo_items: Json
+          understood_facts: Json
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          assumptions?: Json
+          confirmed_at?: string | null
+          contradictions?: Json
+          created_at?: string
+          goal?: string
+          missing_info?: Json
+          project_id: string
+          todo_items?: Json
+          understood_facts?: Json
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Update: {
+          assumptions?: Json
+          confirmed_at?: string | null
+          contradictions?: Json
+          created_at?: string
+          goal?: string
+          missing_info?: Json
+          project_id?: string
+          todo_items?: Json
+          understood_facts?: Json
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_analyses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_contexts: {
         Row: {
           created_at: string

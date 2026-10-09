@@ -5,6 +5,7 @@ import { Loader2, Pencil, Lock, ChevronDown } from "lucide-react";
 import { projectApi, statusClass, STATUSES, formatEvent, type Project } from "@/lib/projects";
 import { useSignedInUser } from "./dashboard";
 import { ContextPanel } from "@/components/momma/ContextPanel";
+import { AnalysisPanel } from "@/components/momma/AnalysisPanel";
 
 export const Route = createFileRoute("/project/$id")({
   ssr: false,
@@ -150,7 +151,7 @@ function ProjectDetail() {
             {SECTIONS.map((s) => {
               const unlocked = stage >= s.unlockAt;
               return (
-                <details key={s.title} open={s.title === "Context" ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
+                <details key={s.title} open={s.title === "Context" || (s.title === "Analysis" && unlocked) ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
                   <summary
                     className={`flex list-none items-center justify-between px-4 py-3 font-display font-semibold ${unlocked ? "cursor-pointer" : "pointer-events-none"}`}
                     aria-disabled={!unlocked}
@@ -160,6 +161,8 @@ function ProjectDetail() {
                   </summary>
                   {s.title === "Context" ? (
                     <ContextPanel projectId={id} userId={user.id} status={project.data!.status} />
+                  ) : s.title === "Analysis" && unlocked ? (
+                    <AnalysisPanel projectId={id} status={project.data!.status} />
                   ) : (
                     <p className="px-4 pb-4 text-sm text-ink/70">{s.note}</p>
                   )}

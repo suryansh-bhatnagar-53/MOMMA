@@ -15,6 +15,13 @@
       "when": 1791563220101,
       "tag": "0001_project_context",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791563799073,
+      "tag": "0002_project_analysis",
+      "breakpoints": true
     }
   ]
 }
