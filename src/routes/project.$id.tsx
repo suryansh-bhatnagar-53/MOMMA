@@ -38,25 +38,24 @@ function ProjectDetail() {
   const project = useQuery({ queryKey: ["project", id], enabled: !!user, queryFn: () => projectApi.get(id) });
   const timeline = useQuery({ queryKey: ["timeline", id], enabled: !!user, queryFn: () => projectApi.timeline(id) });
 
-  const [draft, setDraft] = useState<Pick<Project, "name" | "description" | "status"> | null>(null);
+  const [draft, setDraft] = useState<Pick<Project, "name" | "description"> | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   useEffect(() => {
-    if (project.data) setDraft({ name: project.data.name, description: project.data.description, status: project.data.status });
+    if (project.data) setDraft({ name: project.data.name, description: project.data.description });
   }, [project.data]);
 
   const save = async (manual = false) => {
     if (!draft || !project.data || !draft.name.trim()) return;
     const p = project.data;
-    const changed = draft.name !== p.name || draft.description !== p.description || draft.status !== p.status;
+    const changed = draft.name !== p.name || draft.description !== p.description;
     if (!changed && !manual) return;
     setSaving("saving");
     try {
       if (changed) {
         await projectApi.update(id, { ...draft, name: draft.name.trim() });
-        if (draft.status !== p.status) await projectApi.addEvent(id, "status_changed", { from: p.status, to: draft.status });
-        else if (draft.name !== p.name) await projectApi.addEvent(id, "renamed", { to: draft.name.trim() });
+        if (draft.name !== p.name) await projectApi.addEvent(id, "renamed", { to: draft.name.trim() });
       }
       if (manual) await projectApi.addEvent(id, "manual_save");
       await Promise.all([
@@ -113,18 +112,20 @@ function ProjectDetail() {
                 </button>
               </h1>
             )}
-            <div className="mt-3 flex items-center gap-3">
-              <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${statusClass[project.data.status]}`}>{project.data.status}</span>
-              <select
-                value={draft.status}
-                onChange={(e) => setDraft({ ...draft, status: e.target.value as Project["status"] })}
-                onBlur={() => save()}
-                className="rounded-md border border-line bg-paper px-2 py-1 text-xs"
-                aria-label="Change status"
-              >
-                {STATUSES.map((s) => <option key={s}>{s}</option>)}
-              </select>
-            </div>
+            {/* Read-only: status only moves through the actions in each section below. */}
+            <ol className="mt-3 flex flex-wrap items-center gap-1.5 text-xs" aria-label="Project progress">
+              {STATUSES.map((s, i) => (
+                <li key={s} className="flex items-center gap-1.5">
+                  {i > 0 && <span aria-hidden="true" className={i <= stage ? "text-ink/60" : "text-ink/25"}>→</span>}
+                  <span
+                    aria-current={i === stage ? "step" : undefined}
+                    className={`rounded-full border px-2.5 py-0.5 font-semibold ${i === stage ? statusClass[s] : i < stage ? "border-line text-ink/70" : "border-dashed border-line text-ink/35"}`}
+                  >
+                    {s}
+                  </span>
+                </li>
+              ))}
+            </ol>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-ink/60" aria-live="polite">

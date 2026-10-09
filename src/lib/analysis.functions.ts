@@ -32,7 +32,7 @@ export function ruleBasedAnalysis(raw: string): AnalysisFields {
     assumptions: /chatbot|assistant/.test(lower) ? [] : ["You want a conversational assistant."],
     missing_info: missing,
     contradictions: [],
-    todo_items: missing.map((m) => `Ask: ${m}`),
+    todo_items: [], // the missing_info gaps already become interview questions
   };
 }
 

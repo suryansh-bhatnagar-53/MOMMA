@@ -2,9 +2,9 @@ import { useState } from "react";
 
 const stack = [
   { label: "React", note: "Chosen for maintainability and skill growth — not just speed." },
-  { label: "Python", note: "Readable analysis code the team can keep improving." },
-  { label: "FastAPI", note: "Typed, documented endpoints without heavy scaffolding." },
-  { label: "MySQL", note: "Boring, durable storage for project knowledge." },
+  { label: "TanStack Start", note: "Server functions keep AI keys off the browser." },
+  { label: "PostgreSQL", note: "Supabase Postgres with row-level security: you only ever see your own projects." },
+  { label: "Supabase Storage", note: "Private file storage. Text is extracted in your browser." },
 ];
 
 const flow = [

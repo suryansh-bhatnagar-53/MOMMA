@@ -31,6 +31,38 @@ export function needsFollowup(answer: string) {
   return !/\b[a-z]{3,}\b/.test(a);
 }
 
+// Word set of a gap, ignoring case, punctuation and an "Ask:" prefix.
+function words(item: string) {
+  return new Set(item.toLowerCase().replace(/^\s*ask\s*:/, "").match(/[a-z0-9']+/g) ?? []);
+}
+
+// The same gap often appears in several lists (e.g. missing_info and todo_items), so skip an item
+// that shares at least 80% of its words with one already asked.
+function isRepeat(seen: Set<string>[], w: Set<string>) {
+  return seen.some((s) => {
+    const shared = [...w].filter((x) => s.has(x)).length;
+    return shared / (s.size + w.size - shared || 1) >= 0.8;
+  });
+}
+
+function buildQuestions(projectId: string, analysis: Analysis) {
+  const rows: { project_id: string; ord: number; text: string; kind: string; source: string }[] = [];
+  const seen: Set<string>[] = [];
+  for (const src of SOURCES) {
+    const list = Array.isArray(analysis[src]) ? (analysis[src] as unknown[]) : [];
+    for (const item of list) {
+      if (typeof item !== "string" || !item.trim()) continue;
+      const w = words(item);
+      if (isRepeat(seen, w)) continue;
+      seen.push(w);
+      rows.push({ project_id: projectId, ord: rows.length, text: phrase(src, item), kind: "gap", source: src });
+    }
+  }
+  if (rows.length === 0)
+    rows.push({ project_id: projectId, ord: 0, text: "Is there anything else MOMMA should know before building your bot?", kind: "gap", source: "general" });
+  return rows;
+}
+
 export const interviewApi = {
   async load(projectId: string) {
     const [s, q] = await Promise.all([
@@ -42,22 +74,24 @@ export const interviewApi = {
     return { session: s.data, questions: q.data };
   },
 
+  // Safe to call again after a partial failure: questions are only created if none exist yet,
+  // and the session insert ignores an existing row (rows can't be deleted, so no rollback).
   async start(projectId: string, analysis: Analysis) {
-    const rows: { project_id: string; ord: number; text: string; kind: string; source: string }[] = [];
-    for (const src of SOURCES) {
-      const list = Array.isArray(analysis[src]) ? (analysis[src] as unknown[]) : [];
-      for (const item of list) {
-        if (typeof item === "string" && item.trim())
-          rows.push({ project_id: projectId, ord: rows.length, text: phrase(src, item), kind: "gap", source: src });
-      }
+    const { count, error: ce } = await supabase
+      .from("interview_questions")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId);
+    if (ce) throw ce;
+    if (!count) {
+      const rows = buildQuestions(projectId, analysis);
+      const { error } = await supabase.from("interview_questions").insert(rows);
+      if (error) throw error;
+      await supabase.from("project_timeline").insert({ project_id: projectId, type: "interview_started", details: { questions: rows.length } });
     }
-    if (rows.length === 0)
-      rows.push({ project_id: projectId, ord: 0, text: "Is there anything else MOMMA should know before building your bot?", kind: "gap", source: "general" });
-    const { error: se } = await supabase.from("interview_sessions").insert({ project_id: projectId });
+    const { error: se } = await supabase
+      .from("interview_sessions")
+      .upsert({ project_id: projectId }, { onConflict: "project_id", ignoreDuplicates: true });
     if (se) throw se;
-    const { error } = await supabase.from("interview_questions").insert(rows);
-    if (error) throw error;
-    await supabase.from("project_timeline").insert({ project_id: projectId, type: "interview_started", details: { questions: rows.length } });
   },
 
   async answer(q: InterviewQuestion, text: string, nextOrd: number | null) {

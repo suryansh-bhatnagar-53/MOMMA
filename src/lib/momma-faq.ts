@@ -6,17 +6,17 @@ export const FAQ_BANK: { q: string; a: string; keys: string[] }[] = [
   },
   {
     q: "What happens if my project changes?",
-    a: "When you add new context, I compare it to what I already know. Only the affected areas get re-interviewed; the rest of your knowledge stays intact, and I generate a new bot version from the updated understanding.",
+    a: "Before your interview starts, you can add context and re-run the analysis. Comparing versions and re-interviewing only the parts that changed is planned, but not built yet.",
     keys: ["change", "update", "version", "evolve", "new feature", "grow"],
   },
   {
     q: "Is my data private?",
-    a: "Absolutely. Your project, files, and chat history are stored only in your account. Nothing is shared between users or used for model training unless you explicitly opt-in later.",
+    a: "Your projects and files are stored in your account, and database rules make sure only you can read them. To analyse a project, its text is sent to an AI provider, so avoid uploading anything confidential.",
     keys: ["privacy", "private", "data", "secure", "security", "training"],
   },
   {
     q: "Can I see a sample bot output?",
-    a: "Sure! After you finish the interview, MOMMA prepares a downloadable package that includes the bot's prompt/instructions, a short README, and any starter code—ready to drop into your repo or chat platform.",
+    a: "The bot stage is still being built. The plan is a test chat inside MOMMA plus a downloadable package with the bot's instructions, its knowledge, example conversations and starter code.",
     keys: ["sample", "output", "example", "package", "download", "look like"],
   },
   {
@@ -26,12 +26,12 @@ export const FAQ_BANK: { q: string; a: string; keys: string[] }[] = [
   },
   {
     q: "What file types can I upload?",
-    a: "You can upload PDF, DOC/DOCX, images, screenshots, READMEs, or any other project resource. MOMMA extracts the relevant context without needing to keep the original file forever.",
+    a: "PDF, Word (.docx, .doc), plain text, PNG and JPG, up to 10 MB each. Text is read from PDF, DOCX and TXT files; images and old .doc files are saved but not read yet. Files stay in your private storage until you remove them.",
     keys: ["file", "upload", "pdf", "doc", "image", "screenshot", "readme"],
   },
   {
     q: "How is MOMMA different from a regular bot generator?",
-    a: "Regular generators take a prompt → bot → done. MOMMA builds a living project knowledge base, interviews you to fill gaps, and evolves the bot as your project grows—so you never start from scratch.",
+    a: "Regular generators take a prompt → bot → done. MOMMA first maps what it understood, what it assumed, what's missing and what conflicts in your material, then interviews you on those gaps before building the bot.",
     keys: ["different", "difference", "generator", "compare", "why momma", "unique"],
   },
 ];

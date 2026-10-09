@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pause, Play, CheckCircle2, SendHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,8 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // `busy` only disables buttons after a re-render, so a fast double click could run an action twice.
+  const running = useRef(false);
 
   const refresh = () =>
     Promise.all(
@@ -20,6 +22,8 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
     );
 
   const act = async (fn: () => Promise<unknown>, fail: string) => {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setMsg(null);
     try {
@@ -28,6 +32,7 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
     } catch {
       setMsg(fail);
     } finally {
+      running.current = false;
       setBusy(false);
     }
   };
@@ -37,14 +42,27 @@ export function InterviewPanel({ projectId, status }: { projectId: string; statu
 
   const { session, questions } = state.data;
 
+  const start = () =>
+    act(async () => {
+      const { data, error } = await supabase.from("project_analyses").select("*").eq("project_id", projectId).maybeSingle();
+      if (error) throw error;
+      if (!data?.confirmed_at) throw new Error("not confirmed");
+      await interviewApi.start(projectId, data as never);
+    }, "Couldn't start. Make sure the analysis is confirmed first.");
+
+  // A session without questions means an earlier start only half finished.
+  if (session && questions.length === 0)
+    return (
+      <div className="px-4 pb-5">
+        <p className="text-sm text-ink/70">The interview was started but its questions weren't saved.</p>
+        <button type="button" onClick={start} disabled={busy} className="mt-3 rounded-lg bg-brick px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+          {busy ? "Preparing questions…" : "Prepare questions"}
+        </button>
+        {msg && <p className="mt-2 text-sm text-brick">{msg}</p>}
+      </div>
+    );
+
   if (!session) {
-    const start = () =>
-      act(async () => {
-        const { data, error } = await supabase.from("project_analyses").select("*").eq("project_id", projectId).maybeSingle();
-        if (error) throw error;
-        if (!data?.confirmed_at) throw new Error("not confirmed");
-        await interviewApi.start(projectId, data as never);
-      }, "Couldn't start. Make sure the analysis is confirmed first.");
     return (
       <div className="px-4 pb-5">
         <p className="text-sm text-ink/70">MOMMA will ask about the gaps it found in your analysis, one question at a time. You can pause and come back whenever you like.</p>
