@@ -37,7 +37,7 @@ export function ruleBasedAnalysis(raw: string): AnalysisFields {
 }
 
 function clean(v: unknown): AnalysisFields {
-  const o = (v ?? {}) as Record<string, unknown>;
+  const o = (v ?? {}) as Partial<Record<keyof AnalysisFields, unknown>>;
   const list = (x: unknown) => (Array.isArray(x) ? x.filter((s) => typeof s === "string").map((s) => s.slice(0, 500)).slice(0, 12) : []);
   return {
     goal: typeof o.goal === "string" ? o.goal.slice(0, 1000) : "",
