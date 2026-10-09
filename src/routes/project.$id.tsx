@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil, Lock, ChevronDown } from "lucide-react";
 import { projectApi, statusClass, STATUSES, formatEvent, type Project } from "@/lib/projects";
 import { useSignedInUser } from "./dashboard";
+import { ContextPanel } from "@/components/momma/ContextPanel";
 
 export const Route = createFileRoute("/project/$id")({
   ssr: false,
@@ -149,7 +150,7 @@ function ProjectDetail() {
             {SECTIONS.map((s) => {
               const unlocked = stage >= s.unlockAt;
               return (
-                <details key={s.title} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
+                <details key={s.title} open={s.title === "Context" ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
                   <summary
                     className={`flex list-none items-center justify-between px-4 py-3 font-display font-semibold ${unlocked ? "cursor-pointer" : "pointer-events-none"}`}
                     aria-disabled={!unlocked}
@@ -157,7 +158,11 @@ function ProjectDetail() {
                     {s.title}
                     {unlocked ? <ChevronDown className="h-4 w-4 transition group-open:rotate-180" /> : <Lock className="h-4 w-4" aria-label="Locked until previous step is done" />}
                   </summary>
-                  <p className="px-4 pb-4 text-sm text-ink/70">{s.note}</p>
+                  {s.title === "Context" ? (
+                    <ContextPanel projectId={id} userId={user.id} status={project.data!.status} />
+                  ) : (
+                    <p className="px-4 pb-4 text-sm text-ink/70">{s.note}</p>
+                  )}
                 </details>
               );
             })}
