@@ -3,9 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, Trash2, Upload, Sparkles } from "lucide-react";
 import { contextApi, ACCEPT, ALLOWED_TYPES, formatBytes } from "@/lib/context";
 import { projectApi, type ProjectStatus } from "@/lib/projects";
+import { useServerFn } from "@tanstack/react-start";
+import { generateAnalysis } from "@/lib/analysis.functions";
 
 export function ContextPanel({ projectId, userId, status }: { projectId: string; userId: string; status: ProjectStatus }) {
   const qc = useQueryClient();
+  const generate = useServerFn(generateAnalysis);
   const ctx = useQuery({ queryKey: ["context", projectId], queryFn: () => contextApi.get(projectId) });
   const [text, setText] = useState("");
   const [savedText, setSavedText] = useState("");
@@ -86,6 +89,10 @@ export function ContextPanel({ projectId, userId, status }: { projectId: string;
     try {
       await projectApi.update(projectId, { status: "Analyzing" });
       await projectApi.addEvent(projectId, "analysis_started", { files: ctx.data?.files.length ?? 0 });
+      await refresh();
+      setBusy("MOMMA is reading your project…");
+      await generate({ data: { projectId } });
+      await qc.invalidateQueries({ queryKey: ["analysis", projectId] });
       await refresh();
     } catch {
       setErrors(["Couldn't start analysis."]);
