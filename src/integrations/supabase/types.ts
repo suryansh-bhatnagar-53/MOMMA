@@ -35,6 +35,85 @@ export type Database = {
         }
         Relationships: []
       }
+      project_contexts: {
+        Row: {
+          created_at: string
+          project_id: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          project_id: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          project_id?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contexts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_resources: {
+        Row: {
+          extracted_text: string | null
+          extracted_text_preview: string | null
+          filename: string
+          id: string
+          mime_type: string
+          project_id: string
+          size_bytes: number
+          stored_path: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          extracted_text?: string | null
+          extracted_text_preview?: string | null
+          filename: string
+          id?: string
+          mime_type: string
+          project_id: string
+          size_bytes: number
+          stored_path: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Update: {
+          extracted_text?: string | null
+          extracted_text_preview?: string | null
+          filename?: string
+          id?: string
+          mime_type?: string
+          project_id?: string
+          size_bytes?: number
+          stored_path?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_resources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_timeline: {
         Row: {
           created_at: string
