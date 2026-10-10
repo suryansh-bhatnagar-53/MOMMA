@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestIP } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { FAQ_BANK } from "./momma-faq";
 import { llmGenerate } from "./llm";
+import { allow } from "./rate-limit";
 
 const schema = z.object({
   messages: z
@@ -16,8 +18,21 @@ If a question is outside this scope, politely say you're focused on helping peop
 Keep replies to 1-3 short sentences, plain language, no markdown. Ground answers in these facts:
 ${FAQ_BANK.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n")}`;
 
+// The landing chat needs no login, so cap AI use per visitor and in total to protect the API quotas.
+// When limited, reply is null and ChatPreview answers from the built-in FAQ instead.
+const PER_IP = Number(process.env["LANDING_CHAT_PER_IP"] || 15); // per 10 minutes
+const PER_DAY = Number(process.env["LANDING_CHAT_PER_DAY"] || 300); // all visitors together
+const TEN_MIN = 10 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
+
 export const askMomma = createServerFn({ method: "POST" })
   .validator((data) => schema.parse(data))
-  .handler(async ({ data }) => ({
-    reply: await llmGenerate({ label: "askMomma", system: SYSTEM, messages: data.messages }),
-  }));
+  .handler(async ({ data }) => {
+    // Render (and most hosts) sit behind a proxy that sets X-Forwarded-For.
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+    if (!allow(`landing-ip:${ip}`, PER_IP, TEN_MIN) || !allow("landing-all", PER_DAY, DAY)) {
+      console.warn(`askMomma: rate limited (${ip})`);
+      return { reply: null };
+    }
+    return { reply: await llmGenerate({ label: "askMomma", system: SYSTEM, messages: data.messages }) };
+  });

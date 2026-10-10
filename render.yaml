@@ -1,0 +1,42 @@
+# Render Blueprint: Render → New → Blueprint → pick this repo. Values marked `sync: false`
+# are asked for once in the Render dashboard and never stored in git.
+services:
+  - type: web
+    name: momma
+    runtime: node
+    plan: free # sleeps after ~15 min idle; first request then takes about a minute
+    branch: main # change if you deploy another branch
+    # NITRO_PRESET builds a plain Node server instead of the default Cloudflare bundle.
+    buildCommand: npm install && NITRO_PRESET=node-server npm run build
+    startCommand: node .output/server/index.mjs
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Supabase: same values as the committed .env. VITE_* are baked into the browser bundle at
+      # build time; the others are read by server functions at runtime.
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_PROJECT_ID
+        sync: false
+      # AI providers (secrets: same values as your .env.local).
+      - key: LLM_PROVIDERS
+        value: groq,nvidia,gemini
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: qwen/qwen3.8-27b
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_MODEL
+        value: nvidia/nemotron-3-super-120b-a12b
+      - key: GEMINI_API_KEY
+        sync: false

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { llmGenerate, llmGenerateWithMeta } from "./llm";
+import { allow } from "./rate-limit";
 import { BOT_TEMPERATURE, botInstructions, composeInstructions, readExamples, readKnowledge, ruleBasedBot, type FewShot, type KnowledgePack } from "./bot";
 
 const SYSTEM = `You are MOMMA's bot architect. From the project material, write the configuration for a project-specific AI assistant.
@@ -183,11 +184,9 @@ export const generateBot = createServerFn({ method: "POST" })
     return { version, source, dropped };
   });
 
-// Per-user limit for the test chat, which runs on the project's own Gemini key. In-memory, so it
-// resets on restart and isn't shared between server instances: fine for local/single-server use.
+// Per-user limit for the test chat, which runs on the project's own API keys.
 const CHAT_LIMIT = 30;
 const CHAT_WINDOW_MS = 10 * 60 * 1000;
-const recent = new Map<string, number[]>();
 
 export const chatWithBot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -201,10 +200,7 @@ export const chatWithBot = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const now = Date.now();
-    const times = (recent.get(context.userId) ?? []).filter((t) => now - t < CHAT_WINDOW_MS);
-    if (times.length >= CHAT_LIMIT) return { reply: null, limited: true };
-    recent.set(context.userId, [...times, now]);
+    if (!allow(`bot-chat:${context.userId}`, CHAT_LIMIT, CHAT_WINDOW_MS)) return { reply: null, limited: true };
 
     const { data: bot, error } = await context.supabase
       .from("bot_versions")
