@@ -45,11 +45,23 @@ function isRepeat(seen: Set<string>[], w: Set<string>) {
   });
 }
 
+// The bot generator needs these whatever the documents say; asked once per project (source "bot_scope").
+const BOT_SCOPE = [
+  "Who will talk to this bot, and what should it help them do?",
+  "When the bot can't answer something, what should it tell people (for example, who to contact)?",
+  "Which of the features you described are already built and working, and which are still planned?",
+];
+
 // Round 1 asks about every gap. Later rounds pass the previous confirmed analysis, whose gaps were
 // already covered, so only gaps that are new in this version become questions (delta interviewing).
-function buildQuestions(projectId: string, round: number, analysis: Analysis, previous?: Analysis) {
+function buildQuestions(projectId: string, round: number, analysis: Analysis, previous?: Analysis, askScope = false) {
   const rows: { project_id: string; round: number; ord: number; text: string; kind: string; source: string }[] = [];
   const seen: Set<string>[] = [];
+  if (askScope)
+    for (const text of BOT_SCOPE) {
+      seen.push(words(text));
+      rows.push({ project_id: projectId, round, ord: rows.length, text, kind: "gap", source: "bot_scope" });
+    }
   const items = (a: Analysis, src: (typeof SOURCES)[number]) =>
     (Array.isArray(a[src]) ? (a[src] as unknown[]) : []).filter((x): x is string => typeof x === "string" && !!x.trim());
   if (previous) for (const src of SOURCES) for (const item of items(previous, src)) seen.push(words(item));
@@ -107,6 +119,12 @@ export const interviewApi = {
       .eq("round", round);
     if (ce) throw ce;
     if (!count) {
+      const { count: scoped, error: se2 } = await supabase
+        .from("interview_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", projectId)
+        .eq("source", "bot_scope");
+      if (se2) throw se2;
       let previous: Analysis | undefined;
       if (prior?.analysis_version != null) {
         const { data, error } = await supabase
@@ -118,7 +136,7 @@ export const interviewApi = {
         if (error) throw error;
         previous = data ?? undefined;
       }
-      const rows = buildQuestions(projectId, round, analysis, previous);
+      const rows = buildQuestions(projectId, round, analysis, previous, !scoped);
       const { error } = await supabase.from("interview_questions").insert(rows);
       if (error) throw error;
       await supabase.from("project_timeline").insert({ project_id: projectId, type: "interview_started", details: { round, questions: rows.length } });

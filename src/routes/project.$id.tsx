@@ -7,6 +7,7 @@ import { useSignedInUser } from "./dashboard";
 import { ContextPanel } from "@/components/momma/ContextPanel";
 import { AnalysisPanel } from "@/components/momma/AnalysisPanel";
 import { InterviewPanel } from "@/components/momma/InterviewPanel";
+import { BotPanel } from "@/components/momma/BotPanel";
 
 export const Route = createFileRoute("/project/$id")({
   ssr: false,
@@ -28,7 +29,7 @@ const SECTIONS = [
   { title: "Context", unlockAt: 0, note: "Upload documents and write a brief here. Coming in the next phase." },
   { title: "Analysis", unlockAt: 1, note: "MOMMA's reading of your project will appear here." },
   { title: "Interview", unlockAt: 2, note: "Adaptive questions to fill the gaps will appear here." },
-  { title: "Bot", unlockAt: 4, note: "Your generated bot package will appear here." },
+  { title: "Bot", unlockAt: 3, note: "Finish and confirm the interview to build your bot." },
 ];
 
 function ProjectDetail() {
@@ -153,7 +154,7 @@ function ProjectDetail() {
             {SECTIONS.map((s) => {
               const unlocked = stage >= s.unlockAt;
               return (
-                <details key={s.title} open={s.title === "Context" || ((s.title === "Analysis" || s.title === "Interview") && unlocked) ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
+                <details key={s.title} open={s.title === "Context" || unlocked ? true : undefined} className={`group rounded-xl border border-line ${unlocked ? "bg-cream/40" : "bg-paper opacity-60"}`}>
                   <summary
                     className={`flex list-none items-center justify-between px-4 py-3 font-display font-semibold ${unlocked ? "cursor-pointer" : "pointer-events-none"}`}
                     aria-disabled={!unlocked}
@@ -167,6 +168,8 @@ function ProjectDetail() {
                     <AnalysisPanel projectId={id} status={project.data!.status} />
                   ) : s.title === "Interview" && unlocked ? (
                     <InterviewPanel projectId={id} status={project.data!.status} />
+                  ) : s.title === "Bot" && unlocked ? (
+                    <BotPanel projectId={id} projectName={project.data!.name} status={project.data!.status} />
                   ) : (
                     <p className="px-4 pb-4 text-sm text-ink/70">{s.note}</p>
                   )}

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { geminiGenerate } from "./gemini";
+import { llmGenerateWithMeta } from "./llm";
 
 export type AnalysisFields = {
   goal: string;
@@ -57,18 +57,18 @@ const SCHEMA = {
   required: ["goal", ...LIST_KEYS],
 };
 
-async function callAI(raw: string): Promise<AnalysisFields | null> {
-  const content = await geminiGenerate({
+async function callAI(raw: string): Promise<{ fields: AnalysisFields; by: string } | null> {
+  const res = await llmGenerateWithMeta({
     label: "analysis",
     system: SYSTEM,
     messages: [{ role: "user", content: raw.slice(0, 60000) }],
     json: true,
     schema: SCHEMA,
   });
-  if (!content) return null;
+  if (!res) return null;
   try {
-    const out = clean(JSON.parse(content.replace(/^```(json)?|```$/g, "").trim()));
-    return out.goal ? out : null;
+    const out = clean(JSON.parse(res.text.replace(/^```(json)?|```$/g, "").trim()));
+    return out.goal ? { fields: out, by: `${res.provider}/${res.model}` } : null;
   } catch (e) {
     console.error("analysis: unparseable AI output", e);
     return null;
@@ -95,7 +95,7 @@ export const generateAnalysis = createServerFn({ method: "POST" })
     ].filter(Boolean).join("\n\n");
 
     const ai = await callAI(raw);
-    const fields = ai ?? ruleBasedAnalysis(raw);
+    const fields = ai?.fields ?? ruleBasedAnalysis(raw);
     const version = (prev.data?.version ?? 0) + 1;
     const { error } = await sb.from("project_analyses").upsert(
       { project_id: data.projectId, user_id: context.userId, ...fields, version, confirmed_at: null },
@@ -106,7 +106,7 @@ export const generateAnalysis = createServerFn({ method: "POST" })
       project_id: data.projectId,
       user_id: context.userId,
       type: "analysis_completed",
-      details: { version, source: ai ? "ai" : "rules" },
+      details: { version, source: ai ? "ai" : "rules", ...(ai && { generated_by: ai.by }) },
     });
     return { version, source: ai ? "ai" : "rules" };
   });

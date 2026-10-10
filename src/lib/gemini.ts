@@ -11,6 +11,7 @@ export async function geminiGenerate(opts: {
   messages: ChatTurn[];
   json?: boolean;
   schema?: object; // OpenAPI-style responseSchema, used with json
+  temperature?: number;
   label: string; // for logs
 }): Promise<string | null> {
   const key = process.env["GEMINI_API_KEY"];
@@ -24,9 +25,10 @@ export async function geminiGenerate(opts: {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: opts.system }] },
         contents: opts.messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-        ...(opts.json && {
-          generationConfig: { responseMimeType: "application/json", ...(opts.schema && { responseSchema: opts.schema }) },
-        }),
+        generationConfig: {
+          ...(opts.temperature !== undefined && { temperature: opts.temperature }),
+          ...(opts.json && { responseMimeType: "application/json", ...(opts.schema && { responseSchema: opts.schema }) }),
+        },
       }),
     });
     if (!res.ok) {

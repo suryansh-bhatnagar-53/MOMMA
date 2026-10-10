@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot_versions: {
+        Row: {
+          analysis_version: number | null
+          created_at: string
+          few_shot_examples: Json
+          knowledge_pack: Json
+          project_id: string
+          source: string
+          system_prompt: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          analysis_version?: number | null
+          created_at?: string
+          few_shot_examples?: Json
+          knowledge_pack?: Json
+          project_id: string
+          source?: string
+          system_prompt: string
+          user_id?: string
+          version: number
+        }
+        Update: {
+          analysis_version?: number | null
+          created_at?: string
+          few_shot_examples?: Json
+          knowledge_pack?: Json
+          project_id?: string
+          source?: string
+          system_prompt?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_questions: {
         Row: {
           answer_text: string | null

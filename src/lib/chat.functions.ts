@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { FAQ_BANK } from "./momma-faq";
-import { geminiGenerate } from "./gemini";
+import { llmGenerate } from "./llm";
 
 const schema = z.object({
   messages: z
@@ -19,5 +19,5 @@ ${FAQ_BANK.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n")}`;
 export const askMomma = createServerFn({ method: "POST" })
   .validator((data) => schema.parse(data))
   .handler(async ({ data }) => ({
-    reply: await geminiGenerate({ label: "askMomma", system: SYSTEM, messages: data.messages }),
+    reply: await llmGenerate({ label: "askMomma", system: SYSTEM, messages: data.messages }),
   }));
