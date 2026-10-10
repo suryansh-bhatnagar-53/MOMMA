@@ -8,7 +8,7 @@ MOMMA is intended to be more than a one-time prompt generator. It maintains proj
 
 > **Version 1 focus:** A functional, locally hosted MVP that proves the complete project-to-bot workflow.
 
-Website Link: https://momma-la9o.onrender.com/auth
+Website Link: https://momma-la9o.onrender.com
 ---
 
 ## Table of Contents
